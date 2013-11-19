@@ -1,0 +1,31 @@
+{
+  "name": "zongji",
+  "version": "0.0.0",
+  "description": "A mysql binlog listener running on Node.js",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "make test",
+    "install": "node-gyp rebuild"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nevill/zongji"
+  },
+  "keywords": [
+    "mysql",
+    "binlog"
+  ],
+  "author": "Nevill <nevill.dutt@gmail.com>",
+  "license": "MIT",
+  "gypfile": true,
+  "bugs": {
+    "url": "https://github.com/nevill/zongji/issues"
+  },
+  "homepage": "https://github.com/nevill/zongji",
+  "devDependencies": {
+    "nodeunit": "~0.8.2"
+  }
+}
