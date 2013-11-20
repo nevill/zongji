@@ -14,7 +14,7 @@ function parseDSN(dsn) {
     }
     var hostname = params.hostname,
         port     = params.port || 3306,
-        auth     = params.auth.split(':'),
+        auth     = params.auth ? params.auth.split(':') : [ ],
         user     = auth.shift() || '',
         password = auth.shift() || '';
 
@@ -33,19 +33,6 @@ function ZongJi(connection, options) {
 
 util.inherits(ZongJi, EventEmitter);
 
-var connect = function(dsn) {
-  var connection = binding.init();
-  var params = parseDSN(dsn);
-  var options = {
-    user: params[0],
-    password: params[1],
-    host: params[2],
-    port: params[3]
-  };
-  connection.connect.apply(connection, params);
-  return new ZongJi(connection, options);
-};
-
 ZongJi.prototype.setOption = function(options) {
   this.params = {};
   params.logLevel = options.logLevel || 'info';
@@ -60,4 +47,17 @@ ZongJi.prototype.start = function() {
   });
 };
 
-exports.connect = connect;
+exports.connect = function(dsn) {
+  var connection = binding.init();
+  var params = parseDSN(dsn);
+  var options = {
+    user: params[0],
+    password: params[1],
+    host: params[2],
+    port: params[3]
+  };
+  connection.connect.apply(connection, params);
+  return new ZongJi(connection, options);
+};
+
+exports.parseDSN = parseDSN;

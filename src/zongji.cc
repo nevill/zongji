@@ -1,8 +1,9 @@
 #include "connection.h"
-#include "binlog_api.h"
 
 #include <mysql_com.h>
 #include <sql_common.h>
+
+#include <string>
 
 using namespace v8;
 
@@ -10,18 +11,17 @@ namespace zongji {
 
   namespace internal {
 
-    using namespace std;
-
-    uchar *net_store_data(uchar* destination, const uchar* source, size_t length)
+    uchar* net_store_data(uchar* destination, const uchar* source, size_t length)
     {
       destination = net_store_length(destination, length);
       memcpy(destination, source, length);
       return destination + length;
     }
 
-    int sync_connect(MYSQL *mysql,
-          const char* user, const char* password, const char* host,
-          uint port, long offset) {
+    bool Connection::connect(const char* user, const char* password,
+                  const char* host, uint port, size_t offset) {
+
+      m_mysql= mysql_init(NULL);
 
       uchar buf[1024];
       uchar* pos = buf;
@@ -43,8 +43,10 @@ namespace zongji {
         For a successful connection, the return value is the same as
         the value of the first parameter.
       */
-      if (!mysql_real_connect(mysql, host, user, password, "", port, 0, 0))
-        return ERR_FAIL;
+      if (!mysql_real_connect(m_mysql, host, user, password, "", port, 0, 0)) {
+        m_error = mysql_error(m_mysql);
+        return false;
+      }
 
       int4store(pos, server_id);
       pos += 4;
@@ -67,38 +69,19 @@ namespace zongji {
       pos += 4;
 
       /*
-        It sends a command packet to the mysql-server.
+        register this connection as a slave
+        it requires priviledge 'replication slave' to execute
 
-        @retval ERR_OK      if success
-        @retval ERR_FAIL    on failure
+        GRANT REPLICATION SLAVE ON *.* TO 'user'@'%.domain.com';
       */
-      if (simple_command(mysql, COM_REGISTER_SLAVE, buf, (size_t) (pos - buf), 0))
-        return ERR_FAIL;
-
-      return ERR_OK;
-    }
-
-    char* to_cstring(Local<String> value) {
-      String::Utf8Value theString(value);
-      return *theString;
-    }
-
-    int Connection::connect(const char* user, const char* password,
-                  const char* host, uint port, size_t offset) {
-
-      m_mysql= mysql_init(NULL);
-
-      if (!m_mysql)
-        return ERR_FAIL;
-
-      int err = sync_connect(m_mysql, user, password, host, port, offset);
-
-      if (err != ERR_OK)
-        return err;
+      if (simple_command(m_mysql, COM_REGISTER_SLAVE, buf, (size_t) (pos - buf), 0)) {
+        m_error = mysql_error(m_mysql);
+        return false;
+      }
 
       // const char* binlog_file = "";
       // start_binlog_dump(binlog_file, offset);
-      return ERR_OK;
+      return true;
     }
   }
 
@@ -141,13 +124,17 @@ namespace zongji {
       ThrowException(Exception::TypeError(String::New("Wrong port number")));
     }
     else {
-      const char* user = internal::to_cstring(args[0]->ToString());
-      const char* password = internal::to_cstring(args[1]->ToString());
-      const char* host = internal::to_cstring(args[2]->ToString());
+      std::string user = std::string(*String::Utf8Value(args[0]->ToString()));
+      std::string password = std::string(*String::Utf8Value(args[1]->ToString()));
+      std::string host = std::string(*String::Utf8Value(args[2]->ToString()));
       uint port = args[3]->Uint32Value();
 
       Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
-      conn->m_connection->connect(user, password, host, port);
+      bool result = conn->m_connection->connect(user.c_str(), password.c_str(), host.c_str(), port);
+      if (!result) {
+        ThrowException(Exception::TypeError(
+          String::New(conn->m_connection->m_error)));
+      }
     }
 
     return scope.Close(Undefined());

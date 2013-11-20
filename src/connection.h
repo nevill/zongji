@@ -33,8 +33,10 @@ namespace zongji {
         delete m_mysql;
       }
 
-      int connect(const char* user, const char* password,
+      bool connect(const char* user, const char* password,
                   const char* host, uint port, size_t offset = 4);
+
+      const char* m_error;
 
     private:
       MYSQL *m_mysql;
