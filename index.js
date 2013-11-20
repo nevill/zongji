@@ -1,17 +1,49 @@
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
+var util = require('util'),
+    url = require('url'),
+    EventEmitter = require('events').EventEmitter;
 var binding = require('./build/Release/zongji');
 
-function ZongJi(connection) {
+function parseDSN(dsn) {
+  var result;
+
+  var params = url.parse(dsn);
+
+  if (params.hostname) {
+    if (params.protocol !== 'mysql:') {
+      throw new Error("only be enable to connect MySQL server");
+    }
+    var hostname = params.hostname,
+        port     = params.port || 3306,
+        auth     = params.auth.split(':'),
+        user     = auth.shift() || '',
+        password = auth.shift() || '';
+
+    return [ user, password, hostname, port ];
+
+  } else {
+    throw new Error('bad DSN string, cannot connect to MySQL server');
+  }
+}
+
+function ZongJi(connection, options) {
   EventEmitter.call(this);
   this.connection = connection;
+  this.options = options;
 }
 
 util.inherits(ZongJi, EventEmitter);
 
-var connect = function() {
-  var connection = binding.connect();
-  return new ZongJi(connection);
+var connect = function(dsn) {
+  var connection = binding.init();
+  var params = parseDSN(dsn);
+  var options = {
+    user: params[0],
+    password: params[1],
+    host: params[2],
+    port: params[3]
+  };
+  connection.connect.apply(connection, params);
+  return new ZongJi(connection, options);
 };
 
 ZongJi.prototype.setOption = function(options) {
