@@ -48,9 +48,9 @@ ZongJi.prototype.start = function() {
     this.ready = this.connection.beginBinlogDump();
   }
 
-  this.connection.waitForNextEvent(function(err, event) {
-    self.emit(event.type. event);
-  });
+  // this.connection.waitForNextEvent(function(err, event) {
+  //   self.emit(event.type. event);
+  // });
 };
 
 exports.connect = function(dsn) {

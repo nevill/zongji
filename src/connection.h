@@ -6,6 +6,7 @@
 
 #include <my_global.h>
 #include <mysql.h>
+
 #ifdef min //definition of min() and max() in std and libmysqlclient
            //can be/are different
 #undef min
@@ -13,8 +14,6 @@
 #ifdef max
 #undef max
 #endif
-
-#define MAX_PACKAGE_SIZE 0xffffff
 
 namespace zongji {
 
@@ -37,10 +36,9 @@ namespace zongji {
                   const char* host, uint port);
 
       bool beginBinlogDump(size_t offset = 4);
+      int nextEvent();
 
       const char* m_error;
-
-    private:
       MYSQL *m_mysql;
     };
   }

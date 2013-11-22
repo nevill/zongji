@@ -5,6 +5,10 @@
 
 #include <string>
 
+#include <node.h>
+#include <node_version.h>
+#include <node_buffer.h>
+
 using namespace v8;
 
 namespace zongji {
@@ -101,6 +105,10 @@ namespace zongji {
       }
       return true;
     }
+
+    int Connection::nextEvent() {
+      return cli_safe_read(m_mysql);
+    }
   }
 
   Handle<Value> Connection::NewInstance(const Arguments& args) {
@@ -121,6 +129,27 @@ namespace zongji {
 
   Handle<Value> Connection::WaitForNextEvent(const Arguments& args) {
     HandleScope scope;
+
+    Local<Function> cb = Local<Function>::Cast(args[0]);
+    const unsigned argc = 2;
+    Local<Value> argv[argc];
+
+    Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
+    int length = conn->m_connection->nextEvent();
+    const char* buff = (char*)conn->m_connection->m_mysql->net.buff;
+
+    if (length > 0) {
+      argv[0] = Local<Value>::New(Null());
+      argv[1] = Local<Value>::New(
+        node::Buffer::New(String::New(buff, length)) );
+    }
+    else {
+      argv[0] = Exception::Error(String::New("Unknown mysql binlog error"));
+      argv[1] = Local<Value>::New(Null());
+    }
+
+    cb->Call(Context::GetCurrent()->Global(), argc, argv);
+
     return scope.Close(Undefined());
   }
 

@@ -13,6 +13,10 @@ exports.connect = function(test) {
   test.doesNotThrow(function() {
     connection.connect('zongji', 'zongji', 'localhost', 3306);
     connection.beginBinlogDump();
+    connection.waitForNextEvent(function(err, buffer) {
+      test.ok(!err);
+      test.ok(buffer);
+    });
   });
   test.done();
 };
