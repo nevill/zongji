@@ -34,7 +34,9 @@ namespace zongji {
       }
 
       bool connect(const char* user, const char* password,
-                  const char* host, uint port, size_t offset = 4);
+                  const char* host, uint port);
+
+      bool beginBinlogDump(size_t offset = 4);
 
       const char* m_error;
 
@@ -59,6 +61,7 @@ namespace zongji {
   private:
     static Handle<Value> New(const Arguments& args);
     static Handle<Value> Connect(const Arguments& args);
+    static Handle<Value> BeginBinlogDump(const Arguments& args);
     static Handle<Value> WaitForNextEvent(const Arguments& args);
 
     internal::Connection* m_connection;

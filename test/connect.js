@@ -32,3 +32,13 @@ exports.connectFailed = function(test) {
   });
   test.done();
 };
+
+exports.beginDumpSucceeded = function(test) {
+  var dsn = 'mysql://zongji:zongji@localhost';
+  var zj = zongji.connect(dsn);
+
+  test.doesNotThrow(function() {
+    zj.start();
+  });
+  test.done();
+};

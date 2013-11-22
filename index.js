@@ -29,6 +29,7 @@ function ZongJi(connection, options) {
   EventEmitter.call(this);
   this.connection = connection;
   this.options = options;
+  this.ready = false;
 }
 
 util.inherits(ZongJi, EventEmitter);
@@ -42,6 +43,11 @@ ZongJi.prototype.setOption = function(options) {
 
 ZongJi.prototype.start = function() {
   var self = this;
+
+  if (!this.ready) {
+    this.ready = this.connection.beginBinlogDump();
+  }
+
   this.connection.waitForNextEvent(function(err, event) {
     self.emit(event.type. event);
   });

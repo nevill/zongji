@@ -11,7 +11,7 @@ namespace zongji {
 
   namespace internal {
 
-    uchar* net_store_data(uchar* destination, const uchar* source, size_t length)
+    uchar* netStoreData(uchar* destination, const uchar* source, size_t length)
     {
       destination = net_store_length(destination, length);
       memcpy(destination, source, length);
@@ -19,20 +19,13 @@ namespace zongji {
     }
 
     bool Connection::connect(const char* user, const char* password,
-                  const char* host, uint port, size_t offset) {
+                  const char* host, uint port) {
 
       m_mysql= mysql_init(NULL);
 
       uchar buf[1024];
       uchar* pos = buf;
-
-      /* So that mysql_real_connect use TCP_IP_PROTOCOL. */
-      // mysql_unix_port =0;
       int server_id = 1;
-      // MYSQL_RES* res = 0;
-      // MYSQL_ROW row;
-      // const char* checksum;
-      // uchar version_split[3];
 
       /*
         Attempts to establish a connection to a MySQL database engine
@@ -50,9 +43,9 @@ namespace zongji {
 
       int4store(pos, server_id);
       pos += 4;
-      pos = net_store_data(pos, (const uchar*) host, strlen(host));
-      pos = net_store_data(pos, (const uchar*) user, strlen(user));
-      pos = net_store_data(pos, (const uchar*) password, strlen(password));
+      pos = netStoreData(pos, (const uchar*) host, strlen(host));
+      pos = netStoreData(pos, (const uchar*) user, strlen(user));
+      pos = netStoreData(pos, (const uchar*) password, strlen(password));
       int2store(pos, (uint16) port);
       pos += 2;
 
@@ -79,8 +72,33 @@ namespace zongji {
         return false;
       }
 
-      // const char* binlog_file = "";
-      // start_binlog_dump(binlog_file, offset);
+      return true;
+    }
+
+    bool Connection::beginBinlogDump(size_t offset) {
+      const char* binlog_name = "";
+
+      // see http://dev.mysql.com/doc/internals/en/com-binlog-dump.html
+      uchar buf[1024];
+
+      ushort binlog_flags = 0;
+      int server_id = 1;
+      size_t binlog_name_length;
+
+      m_mysql->status = MYSQL_STATUS_READY;
+
+      int4store(buf, long(offset));
+      int2store(buf + 4, binlog_flags);
+      int4store(buf + 6, server_id);
+
+      binlog_name_length = strlen(binlog_name);
+
+      memcpy(buf + 10, binlog_name, binlog_name_length);
+
+      if (simple_command(m_mysql, COM_BINLOG_DUMP, buf, binlog_name_length + 10, 1)) {
+        m_error = mysql_error(m_mysql);
+        return false;
+      }
       return true;
     }
   }
@@ -93,6 +111,7 @@ namespace zongji {
 
     NODE_SET_PROTOTYPE_METHOD(tpl, "waitForNextEvent", Connection::WaitForNextEvent);
     NODE_SET_PROTOTYPE_METHOD(tpl, "connect", Connection::Connect);
+    NODE_SET_PROTOTYPE_METHOD(tpl, "beginBinlogDump", Connection::BeginBinlogDump);
 
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -131,13 +150,32 @@ namespace zongji {
 
       Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
       bool result = conn->m_connection->connect(user.c_str(), password.c_str(), host.c_str(), port);
-      if (!result) {
+      if (result) {
+        return scope.Close(True());
+      }
+      else {
         ThrowException(Exception::TypeError(
           String::New(conn->m_connection->m_error)));
       }
     }
 
-    return scope.Close(Undefined());
+    return scope.Close(False());
+  }
+
+  Handle<Value> Connection::BeginBinlogDump(const Arguments& args) {
+    HandleScope scope;
+
+    Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
+    bool result = conn->m_connection->beginBinlogDump();
+    if (result) {
+      return scope.Close(True());
+    }
+    else {
+      ThrowException(Exception::TypeError(
+          String::New(conn->m_connection->m_error)));
+    }
+
+    return scope.Close(False());
   }
 
   Handle<Value> Connection::New(const Arguments& args) {
