@@ -3,7 +3,7 @@
     {
       'target_name': 'zongji',
       'sources': [
-        'src/zongji.cc'
+        'src/zongji.cpp'
       ],
       'link_settings': {
         'cflags': [
