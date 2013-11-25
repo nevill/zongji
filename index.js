@@ -1,7 +1,9 @@
 var util = require('util'),
     url = require('url'),
     EventEmitter = require('events').EventEmitter;
+
 var binding = require('./build/Release/zongji');
+var binlogevent = require('./binlog_event');
 
 function parseDSN(dsn) {
   var result;
@@ -25,9 +27,8 @@ function parseDSN(dsn) {
   }
 }
 
-function ZongJi(connection, options) {
+function ZongJi(options) {
   EventEmitter.call(this);
-  this.connection = connection;
   this.options = options;
   this.ready = false;
 }
@@ -41,18 +42,6 @@ ZongJi.prototype.setOption = function(options) {
   params.timeout = options.timeout || 3; // in seconds
 };
 
-ZongJi.prototype.start = function() {
-  var self = this;
-
-  if (!this.ready) {
-    this.ready = this.connection.beginBinlogDump();
-  }
-
-  // this.connection.waitForNextEvent(function(err, event) {
-  //   self.emit(event.type. event);
-  // });
-};
-
 exports.connect = function(dsn) {
   var connection = binding.init();
   var params = parseDSN(dsn);
@@ -62,8 +51,33 @@ exports.connect = function(dsn) {
     host: params[2],
     port: params[3]
   };
+
   connection.connect.apply(connection, params);
-  return new ZongJi(connection, options);
+
+  ZongJi.prototype.start = function() {
+    var self = this;
+
+    if (!this.ready) {
+      this.ready = connection.beginBinlogDump();
+    }
+
+    var nextEventCb = function(err, eventBuffer) {
+      var theEvent = binlogevent.create(eventBuffer);
+      // console.log("Event buffer(%d):", eventBuffer.length, eventBuffer.slice(0,20));
+      //TODO record next binlog to resume
+      if (theEvent instanceof binlogevent.Rotate) {
+        // var pos = theEvent.position;
+        // var binlogFile = theEvent.binlogName;
+      }
+      self.emit(theEvent.getEventName(), theEvent);
+    };
+
+    while(true) {
+      connection.waitForNextEvent(nextEventCb);
+    }
+  };
+
+  return new ZongJi(options);
 };
 
 exports.parseDSN = parseDSN;

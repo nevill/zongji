@@ -1,4 +1,5 @@
 var binding = require('../build/Release/zongji');
+var BinlogEvent = require('../binlog_event');
 
 exports.methods = function(test) {
   var connection = binding.init();
