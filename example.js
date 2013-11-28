@@ -10,8 +10,7 @@ var listener = ZongJi.connect(mysqlUrl);
 //   retryTimeout: 3 });
 
 listener.on('rotate', function(event) {
-  console.log('position:', event.position);
-  console.log('binlog name:', event.binlogName);
+  event.dump();
 });
 
 listener.on('format', function(event) {
