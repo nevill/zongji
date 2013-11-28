@@ -141,7 +141,7 @@ namespace zongji {
     if (length > 0) {
       argv[0] = Local<Value>::New(Null());
       argv[1] = Local<Value>::New(
-        node::Buffer::New(String::New(buff, length)) );
+        node::Buffer::New(buff, length)->handle_ );
     }
     else {
       argv[0] = Exception::Error(String::New("Unknown mysql binlog error"));
