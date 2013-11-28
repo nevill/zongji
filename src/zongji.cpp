@@ -5,10 +5,6 @@
 
 #include <string>
 
-#include <node.h>
-#include <node_version.h>
-#include <node_buffer.h>
-
 using namespace v8;
 
 namespace zongji {
@@ -127,28 +123,69 @@ namespace zongji {
     return scope.Close(constructor->NewInstance(0, NULL));
   }
 
-  Handle<Value> Connection::WaitForNextEvent(const Arguments& args) {
-    HandleScope scope;
+  void Connection::fetchNextEvent(uv_work_t* req) {
+    struct EventRequest* eventRequest = (struct EventRequest*)(req->data);
 
-    Local<Function> cb = Local<Function>::Cast(args[0]);
+    Connection* conn = eventRequest->conn;
+    int length = conn->m_connection->nextEvent();
+    if (length > 0) {
+      const char* buff = (char*)conn->m_connection->m_mysql->net.buff;
+      eventRequest->eventBuffer = new char[length];
+      memcpy(eventRequest->eventBuffer, buff, length);
+      eventRequest->bufferLength = length;
+      eventRequest->hasError = false;
+    }
+    else {
+      eventRequest->hasError = true;
+    }
+  }
+  void Connection::afterFetchNextEvent(uv_work_t* req, int status) {
+    struct EventRequest* eventRequest = (struct EventRequest*)(req->data);
+
     const unsigned argc = 2;
     Local<Value> argv[argc];
 
-    Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
-    int length = conn->m_connection->nextEvent();
-    const char* buff = (char*)conn->m_connection->m_mysql->net.buff;
-
-    if (length > 0) {
-      argv[0] = Local<Value>::New(Null());
-      argv[1] = Local<Value>::New(
-        node::Buffer::New(buff, length)->handle_ );
-    }
-    else {
+    if (eventRequest->hasError) {
       argv[0] = Exception::Error(String::New("Unknown mysql binlog error"));
       argv[1] = Local<Value>::New(Null());
     }
+    else {
+      char* buff = eventRequest->eventBuffer;
+      argv[0] = Local<Value>::New(Null());
+      argv[1] = Local<Value>::New(node::Buffer::New(buff, eventRequest->bufferLength)->handle_);
 
-    cb->Call(Context::GetCurrent()->Global(), argc, argv);
+      node::MakeCallback(Context::GetCurrent()->Global(), eventRequest->callback, argc, argv);
+
+      delete[] buff;
+    }
+
+    eventRequest->callback.Dispose();
+    eventRequest->conn->Unref();
+
+    delete eventRequest;
+    delete req;
+  }
+
+  Handle<Value> Connection::WaitForNextEvent(const Arguments& args) {
+    HandleScope scope;
+
+    if (!args[0]->IsFunction()) {
+      ThrowException(Exception::TypeError(String::New("Wrong argument callback")));
+    }
+    else {
+      Connection* conn = ObjectWrap::Unwrap<Connection>(args.This());
+
+      Local<Function> cb = Local<Function>::Cast(args[0]);
+
+      EventRequest* eventRequest = new EventRequest;
+      eventRequest->callback = Persistent<Function>::New(cb);
+      eventRequest->conn = conn;
+      conn->Ref();
+
+      uv_work_t *req = new uv_work_t;
+      req->data = eventRequest;
+      uv_queue_work(uv_default_loop(), req, fetchNextEvent, afterFetchNextEvent);
+    }
 
     return scope.Close(Undefined());
   }

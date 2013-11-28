@@ -63,18 +63,17 @@ exports.connect = function(dsn) {
 
     var nextEventCb = function(err, eventBuffer) {
       var theEvent = binlogevent.create(eventBuffer);
-      // console.log("Event buffer(%d):", eventBuffer.length, eventBuffer.slice(0,20));
+      // console.log("Event header (%d):", eventBuffer.length, eventBuffer.slice(0,20));
       //TODO record next binlog to resume
       if (theEvent instanceof binlogevent.Rotate) {
         // var pos = theEvent.position;
         // var binlogFile = theEvent.binlogName;
       }
       self.emit(theEvent.getEventName(), theEvent);
+      connection.waitForNextEvent(nextEventCb);
     };
 
-    while(true) {
-      connection.waitForNextEvent(nextEventCb);
-    }
+    connection.waitForNextEvent(nextEventCb);
   };
 
   return new ZongJi(options);

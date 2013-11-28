@@ -2,6 +2,9 @@
 #define ZONGJI_CONNECTION_H_
 
 #include <node.h>
+#include <node_version.h>
+#include <node_buffer.h>
+
 #include <v8.h>
 
 #include <my_global.h>
@@ -57,12 +60,22 @@ namespace zongji {
     static Handle<Value> NewInstance(const Arguments& args);
 
   private:
+    internal::Connection* m_connection;
+
     static Handle<Value> New(const Arguments& args);
     static Handle<Value> Connect(const Arguments& args);
     static Handle<Value> BeginBinlogDump(const Arguments& args);
     static Handle<Value> WaitForNextEvent(const Arguments& args);
 
-    internal::Connection* m_connection;
+    static void fetchNextEvent(uv_work_t* req);
+    static void afterFetchNextEvent(uv_work_t* req, int status);
+    struct EventRequest {
+      bool hasError;
+      char* eventBuffer;
+      int bufferLength;
+      Persistent<Function> callback;
+      Connection* conn;
+    };
   };
 }
 
