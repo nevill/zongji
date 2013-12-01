@@ -155,7 +155,8 @@ function parseHeader(buffer) {
   buffer.readUInt8(position);
   position += 1;
 
-  var timestamp = buffer.readUInt32LE(position);
+  // convert from milliseconds to seconds
+  var timestamp = buffer.readUInt32LE(position) * 1000;
   position += 4;
 
   var eventType = buffer.readUInt8(position);

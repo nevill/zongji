@@ -29,7 +29,7 @@ exports.formatEventHeader = function(test) {
   var params = binlogevent.parseHeader(buf);
 
   test.equal(params[1], 0x0f);
-  test.equal(params[2], 1385043180);
+  test.equal(params[2], 1385043180000);
 
   test.done();
 };
