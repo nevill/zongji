@@ -19,3 +19,17 @@ exports.rotateEvent = function(test) {
   test.equal(anEvent.binlogName, 'mysql-bin.000001');
   test.done();
 };
+
+exports.formatEventHeader = function(test) {
+  var data = [ 0x00,
+    0xec, 0x14, 0x8e, 0x52, 0x0f, 0x01, 0x00, 0x00, 0x00, 0x74, 0x00, 0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00
+  ];
+
+  var buf = new Buffer(data);
+  var params = binlogevent.parseHeader(buf);
+
+  test.equal(params[1], 0x0f);
+  test.equal(params[2], 1385043180);
+
+  test.done();
+};

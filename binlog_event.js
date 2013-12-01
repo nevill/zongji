@@ -42,9 +42,9 @@ function readUInt64(buff, offset) {
   return buff.readInt32LE(offset) + 0x100000000 * buff.readUInt32LE(offset + 4);
 }
 
-function BinlogEvent(buffer, type, timestamp, nextPosition, size) {
+function BinlogEvent(buffer, typeCode, timestamp, nextPosition, size) {
   this.buffer = buffer;
-  this.type = type;
+  this.typeCode = typeCode;
   this.timestamp = timestamp;
   this.nextPosition = nextPosition;
   this.size = size;
@@ -59,7 +59,7 @@ BinlogEvent.prototype.getTypeName = function() {
 };
 
 BinlogEvent.prototype.getTypeCode = function() {
-  return this.type;
+  return this.typeCode;
 };
 
 BinlogEvent.prototype.dump = function() {
@@ -74,10 +74,15 @@ BinlogEvent.prototype.dump = function() {
 // Attributes:
 //     position: Position inside next binlog
 //     binlogName: Name of next binlog file
-function Rotate(buffer, type, timestamp, nextPosition, size) {
-  BinlogEvent.apply(this, arguments);
-  this.position = readUInt64(this.buffer, 0);
-  this.binlogName = this.buffer.toString('ascii', 8);
+function Rotate(buffer, typeCode, timestamp, nextPosition, size) {
+  if (this instanceof Rotate) {
+    BinlogEvent.apply(this, arguments);
+    this.position = readUInt64(this.buffer, 0);
+    this.binlogName = this.buffer.toString('ascii', 8);
+  }
+  else {
+    return new Rotate(buffer, typeCode, timestamp, nextPosition, size);
+  }
 }
 util.inherits(Rotate, BinlogEvent);
 
@@ -90,8 +95,13 @@ Rotate.prototype.dump = function() {
 
 exports.Rotate = Rotate;
 
-function Format(buffer, type, timestamp, nextPosition, size) {
-  BinlogEvent.apply(this, arguments);
+function Format(buffer, typeCode, timestamp, nextPosition, size) {
+  if (this instanceof Format) {
+    BinlogEvent.apply(this, arguments);
+  }
+  else {
+    return new Format(buffer, typeCode, timestamp, nextPosition, size);
+  }
 }
 util.inherits(Format, BinlogEvent);
 
@@ -100,24 +110,39 @@ exports.Format = Format;
 // A COMMIT event
 // Attributes:
 //     xid: Transaction ID for 2PC
-function Xid(buffer, type, timestamp, nextPosition, size) {
-  BinlogEvent.apply(this, arguments);
+function Xid(buffer, typeCode, timestamp, nextPosition, size) {
+  if (this instanceof Xid) {
+    BinlogEvent.apply(this, arguments);
+  }
+  else {
+    return new Xid(buffer, typeCode, timestamp, nextPosition, size);
+  }
 }
 util.inherits(Xid, BinlogEvent);
 
 // This evenement is trigger when a query is run of the database.
 // Only replicated queries are logged.
-function Query(buffer, type, timestamp, nextPosition, size) {
-  BinlogEvent.apply(this, arguments);
+function Query(buffer, typeCode, timestamp, nextPosition, size) {
+  if (this instanceof Query) {
+    BinlogEvent.apply(this, arguments);
+  }
+  else {
+    return new Query(buffer, typeCode, timestamp, nextPosition, size);
+  }
 }
 util.inherits(Query, BinlogEvent);
 
-function Unknown(buffer, type, timestamp, nextPosition, size) {
-  BinlogEvent.apply(this, arguments);
+function Unknown(buffer, typeCode, timestamp, nextPosition, size) {
+  if (this instanceof Unknown) {
+    BinlogEvent.apply(this, arguments);
+  }
+  else {
+    return new Unknown(buffer, typeCode, timestamp, nextPosition, size);
+  }
 }
 util.inherits(Unknown, BinlogEvent);
 
-exports.create = function(buffer) {
+function parseHeader(buffer) {
   // uint8_t  marker; // always 0 or 0xFF
   // uint32_t timestamp;
   // uint8_t  type_code;
@@ -157,24 +182,33 @@ exports.create = function(buffer) {
   var eventSize = eventLength - headerLength;
   var binlogBuffer = buffer.slice(position);
 
-  var binlogEvent;
-  switch (eventType) {
-    case ROTATE_EVENT:
-      binlogEvent = new Rotate(binlogBuffer, eventType, timestamp, nextPosition, eventSize);
+  return [binlogBuffer, eventType, timestamp, nextPosition, eventSize];
+}
+
+exports.parseHeader = parseHeader;
+
+var eventMap = [
+  { code: ROTATE_EVENT, type: Rotate },
+  { code: FORMAT_DESCRIPTION_EVENT, type: Format },
+  { code: QUERY_EVENT, type: Query },
+  { code: XID_EVENT, type: Xid },
+];
+
+function getEventTypeByCode(code) {
+  var result = Unknown;
+  for (var i = eventMap.length - 1; i >= 0; i--) {
+    if (eventMap[i].code == code) {
+      result = eventMap[i].type;
       break;
-    case FORMAT_DESCRIPTION_EVENT:
-      binlogEvent = new Format(binlogBuffer, eventType, timestamp, nextPosition, eventSize);
-      break;
-    case QUERY_EVENT:
-      binlogEvent = new Query(binlogBuffer, eventType, timestamp, nextPosition, eventSize);
-      break;
-    case XID_EVENT:
-      binlogEvent = new Xid(binlogBuffer, eventType, timestamp, nextPosition, eventSize);
-      break;
-    // row event
-    default:
-      binlogEvent = new Unknown(binlogBuffer, eventType, timestamp, nextPosition, eventSize);
+    }
   }
+  return result;
+}
+
+exports.create = function(buffer) {
+  var params = parseHeader(buffer);
+  var claz = getEventTypeByCode(params[1]);
+  var binlogEvent = claz.apply(null, params);
 
   return binlogEvent;
 };

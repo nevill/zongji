@@ -11,7 +11,7 @@
 #include <mysql.h>
 
 #ifdef min //definition of min() and max() in std and libmysqlclient
-           //can be/are different
+           //can be different
 #undef min
 #endif
 #ifdef max
