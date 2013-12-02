@@ -6,13 +6,11 @@ var binding = require('./build/Release/zongji');
 var binlog = require('./lib');
 
 function parseDSN(dsn) {
-  var result;
-
   var params = url.parse(dsn);
 
   if (params.hostname) {
     if (params.protocol !== 'mysql:') {
-      throw new Error("only be enable to connect MySQL server");
+      throw new Error('only be enable to connect MySQL server');
     }
     var hostname = params.hostname,
         port     = params.port || 3306,
@@ -37,9 +35,9 @@ util.inherits(ZongJi, EventEmitter);
 
 ZongJi.prototype.setOption = function(options) {
   this.params = {};
-  params.logLevel = options.logLevel || 'info';
-  params.retryLimit = options.retryLimit || 10;
-  params.timeout = options.timeout || 3; // in seconds
+  this.params.logLevel = options.logLevel || 'info';
+  this.params.retryLimit = options.retryLimit || 10;
+  this.params.timeout = options.timeout || 3; // in seconds
 };
 
 exports.connect = function(dsn) {
@@ -63,7 +61,7 @@ exports.connect = function(dsn) {
 
     var nextEventCb = function(err, eventBuffer) {
       var theEvent = binlog.create(eventBuffer);
-      // console.log("Event header (%d):", eventBuffer.length, eventBuffer.slice(0,20));
+      // console.log('Event header (%d):', eventBuffer.length, eventBuffer.slice(0,20));
       //TODO record next binlog to resume
       if (theEvent instanceof binlog.Rotate) {
         // var pos = theEvent.position;

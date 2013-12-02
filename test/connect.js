@@ -36,8 +36,8 @@ exports.beginDumpSucceeded = function(test) {
   var dsn = 'mysql://zongji:zongji@localhost';
 
   test.doesNotThrow(function() {
-      var zj = zongji.connect(dsn);
-  //   zj.start();
+    var zj = zongji.connect(dsn);
+    // zj.start();
   });
   test.done();
 };

@@ -1,11 +1,10 @@
 var binding = require('../build/Release/zongji');
-var BinlogEvent = require('../lib');
 
 exports.methods = function(test) {
   var connection = binding.init();
-  test.ok(connection.connect, "has method 'connect'");
-  test.ok(connection.beginBinlogDump, "has method 'beginBinlogDump'");
-  test.ok(connection.waitForNextEvent, "has method 'waitForNextEvent'");
+  test.ok(connection.connect, 'has method - connect');
+  test.ok(connection.beginBinlogDump, 'has method - beginBinlogDump');
+  test.ok(connection.waitForNextEvent, 'has method - waitForNextEvent');
   test.done();
 };
 
