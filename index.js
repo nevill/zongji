@@ -3,7 +3,7 @@ var util = require('util'),
     EventEmitter = require('events').EventEmitter;
 
 var binding = require('./build/Release/zongji');
-var binlogevent = require('./binlog_event');
+var binlog = require('./lib');
 
 function parseDSN(dsn) {
   var result;
@@ -62,10 +62,10 @@ exports.connect = function(dsn) {
     }
 
     var nextEventCb = function(err, eventBuffer) {
-      var theEvent = binlogevent.create(eventBuffer);
+      var theEvent = binlog.create(eventBuffer);
       // console.log("Event header (%d):", eventBuffer.length, eventBuffer.slice(0,20));
       //TODO record next binlog to resume
-      if (theEvent instanceof binlogevent.Rotate) {
+      if (theEvent instanceof binlog.Rotate) {
         // var pos = theEvent.position;
         // var binlogFile = theEvent.binlogName;
       }

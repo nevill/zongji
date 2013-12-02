@@ -1,5 +1,5 @@
 var Buffer = require('buffer').Buffer;
-var binlogevent = require('../binlog_event');
+var binlogevent = require('../lib');
 
 exports.rotateEvent = function(test) {
   var data = [ 0x00,
