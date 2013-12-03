@@ -54,3 +54,22 @@ exports.formatEventHeader = function(test) {
 
   test.done();
 };
+
+exports.queryEventHeader = function(test) {
+  var data = [ 0x00,
+    0x4b, 0x58, 0x93, 0x52, // timestamp in seconds
+    0x02, // event type
+    0x01, 0x00, 0x00, 0x00, // server id
+    0x4f, 0x01, 0x00, 0x00, // event length
+    0xe0, 0x03, 0x00, 0x00, // next position
+    0x00, 0x00
+  ];
+
+  var buf = new Buffer(data);
+  var params = binlog.parseHeader(buf);
+  test.equal(params[1], 2);
+  test.equal(params[2], 1385388107000);
+  test.equal(params[3], 992);
+  test.equal(params[4], 316);
+  test.done();
+};
