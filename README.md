@@ -4,6 +4,8 @@ A mysql binlog listener running on Node.js.
 ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
 ## Prerequisite
+
+* Node.js v0.10+
 * libmysqlclient-dev
 * enable mysql binlog in `my.cnf`, here is a sample config, remember to restart mysql server after making the changes.
   > Notice that binlog checksum is disabled, ZongJi doesn't support it right now.
@@ -24,7 +26,9 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
   ```
 
 ## Reference
+
 I learnt many things from following resources while making ZongJi.
+
 * http://intuitive-search.blogspot.co.uk/2011/07/binary-log-api-and-replication-listener.html
 * https://github.com/Sannis/node-mysql-libmysqlclient
 * https://kkaefer.com/node-cpp-modules/
