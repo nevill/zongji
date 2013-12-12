@@ -16,7 +16,7 @@ exports.connect = function(test) {
     connection.waitForNextEvent(function(err, buffer) {
       test.ok(!err);
       test.ok(buffer);
+      test.done();
     });
   });
-  test.done();
 };
