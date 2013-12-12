@@ -1,9 +1,19 @@
 #include "connection.h"
 
+#include <my_sys.h>
 #include <mysql_com.h>
 #include <sql_common.h>
 
+#include <cstring>
 #include <string>
+
+#ifdef min //definition of min() and max() in std and libmysqlclient
+           //can be different
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 using namespace v8;
 
