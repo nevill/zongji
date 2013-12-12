@@ -1,5 +1,5 @@
 # ZongJi
-A mysql binlog listener running on Node.js.
+A MySQL binlog listener running on Node.js.
 
 ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
@@ -7,11 +7,11 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
 * Node.js v0.10+
 * libmysqlclient-dev
-* enable mysql binlog in `my.cnf`, here is a sample config, remember to restart mysql server after making the changes.
-  > Notice that binlog checksum is disabled, ZongJi doesn't support it right now.
+* enable MySQL binlog in `my.cnf`, here is a sample config, remember to restart MySQL server after making the changes.
+  > Notice that binlog checksum is disabled, ZongJi doesn't support it right now. It's a new feature from [MySQL 5.6](https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html).
 
   ```
-  # binlog
+  # binlog config
   server-id = 1
   log_bin = /usr/local/var/log/mysql/mysql-bin.log
   binlog_do_db = employees
@@ -21,8 +21,8 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
   #Very important if you want to receive write, update and delete row events
   binlog_format    = row
 
-  #https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html
-  binlog_checksum = none
+  # only do it in mysql 5.6
+  binlog_checksum  = none
   ```
 
 ## Reference
