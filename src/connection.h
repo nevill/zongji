@@ -27,7 +27,7 @@ namespace zongji {
     class Connection {
 
     public:
-      Connection() {
+      Connection() : m_mysql() {
         // constructor of zongji::internal::Connection
       }
 
