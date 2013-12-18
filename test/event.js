@@ -18,7 +18,6 @@ exports.rotateEvent = function(test) {
   var anEvent = createEvent(data);
 
   test.ok(anEvent instanceof binlog.Rotate);
-  test.equal(anEvent.getTypeCode(), 0x04);
   test.equal(anEvent.getEventName(), 'rotate');
   test.equal(anEvent.getTypeName(), 'Rotate');
   test.equal(anEvent.size, 0x2b - 19);
@@ -49,7 +48,7 @@ exports.formatEventHeader = function(test) {
   var buf = new Buffer(data);
   var params = binlog.parseHeader(buf);
 
-  test.equal(params[1], 0x0f);
+  test.equal(params[0], 0x0f);
   test.equal(params[2], 1385043180000);
 
   test.done();
@@ -67,7 +66,7 @@ exports.queryEventHeader = function(test) {
 
   var buf = new Buffer(data);
   var params = binlog.parseHeader(buf);
-  test.equal(params[1], 2);
+  test.equal(params[0], 2);
   test.equal(params[2], 1385388107000);
   test.equal(params[3], 992);
   test.equal(params[4], 316);
