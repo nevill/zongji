@@ -25,6 +25,10 @@ listener.on('xid', function(event) {
   event.dump();
 });
 
+listener.on('tablemap', function(event) {
+  event.dump();
+});
+
 listener.on('unknown', function(event) {
   event.dump();
 });

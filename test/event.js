@@ -72,3 +72,36 @@ exports.queryEventHeader = function(test) {
   test.equal(params[4], 316);
   test.done();
 };
+
+exports.tablemapEvent = function(test) {
+  var data = [ 0x00,
+    0x19, 0x69, 0xf0, 0x52, // timestamp in seconds
+    0x13, // event type
+    0x01, 0x00, 0x00, 0x00, // server id
+    0x32, 0x00, 0x00, 0x00, // event length
+    0xc8, 0x01, 0x00, 0x00, // next position
+    0x00, 0x00, // header end
+    0x4c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x09, 0x65, 0x6d,
+    0x70, 0x6c, 0x6f, 0x79, 0x65, 0x65, 0x73, 0x00, 0x03, 0x61, 0x62,
+    0x63, 0x00, 0x02, 0x03, 0x0f, 0x02, 0xfd, 0x02, 0x03
+  ];
+
+  var buf = new Buffer(data);
+  var params = binlog.parseHeader(buf);
+  test.equal(params[0], 0x13);
+  test.equal(params[2], 1391487257000); // should return in milliseconds
+  test.equal(params[3], 456);
+  test.equal(params[4], 31);
+
+  var anEvent = createEvent(data);
+  test.ok(anEvent instanceof binlog.TableMap);
+  test.equal(anEvent.getEventName(), 'tablemap');
+  test.equal(anEvent.getTypeName(), 'TableMap');
+  test.equal(anEvent.schemaName, 'employees');
+  test.equal(anEvent.tableId, 76);
+  test.equal(anEvent.tableName, 'abc');
+  test.equal(anEvent.columnCount, 2);
+  test.deepEqual(anEvent.columnTypes, [3, 15]);
+
+  test.done();
+};
