@@ -3,6 +3,9 @@
   "version": "0.1.1",
   "description": "A mysql binlog listener running on Node.js",
   "main": "index.js",
+  "engines" : {
+    "node" : "0.10"
+  },
   "directories": {
     "test": "test"
   },
