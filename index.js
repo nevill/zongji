@@ -25,8 +25,9 @@ function parseDSN(dsn) {
   }
 }
 
-function ZongJi(options) {
+function ZongJi(connection, options) {
   EventEmitter.call(this);
+  this.connection = connection;
   this.options = options;
   this.ready = false;
 }
@@ -40,6 +41,28 @@ ZongJi.prototype.setOption = function(options) {
   this.params.timeout = options.timeout || 3; // in seconds
 };
 
+ZongJi.prototype.start = function() {
+  var self = this;
+
+  if (!this.ready) {
+    this.ready = this.connection.beginBinlogDump();
+  }
+
+  var nextEventCb = function(err, eventBuffer) {
+    var theEvent = binlog.create(eventBuffer);
+    //console.log('\nEvent header (%d):', eventBuffer.length, eventBuffer.slice(0,20));
+    //TODO record next binlog to resume
+    if (theEvent instanceof binlog.Rotate) {
+      // var pos = theEvent.position;
+      // var binlogFile = theEvent.binlogName;
+    }
+    self.emit(theEvent.getEventName(), theEvent);
+    self.connection.waitForNextEvent(nextEventCb);
+  };
+
+  this.connection.waitForNextEvent(nextEventCb);
+};
+
 exports.connect = function(dsn) {
   var connection = binding.init();
   var params = parseDSN(dsn);
@@ -49,32 +72,9 @@ exports.connect = function(dsn) {
     host: params[2],
     port: params[3]
   };
-
   connection.connect.apply(connection, params);
 
-  ZongJi.prototype.start = function() {
-    var self = this;
-
-    if (!this.ready) {
-      this.ready = connection.beginBinlogDump();
-    }
-
-    var nextEventCb = function(err, eventBuffer) {
-      var theEvent = binlog.create(eventBuffer);
-      // console.log('Event header (%d):', eventBuffer.length, eventBuffer.slice(0,20));
-      //TODO record next binlog to resume
-      if (theEvent instanceof binlog.Rotate) {
-        // var pos = theEvent.position;
-        // var binlogFile = theEvent.binlogName;
-      }
-      self.emit(theEvent.getEventName(), theEvent);
-      connection.waitForNextEvent(nextEventCb);
-    };
-
-    connection.waitForNextEvent(nextEventCb);
-  };
-
-  return new ZongJi(options);
+  return new ZongJi(connection, options);
 };
 
 exports.parseDSN = parseDSN;
