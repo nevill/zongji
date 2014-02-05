@@ -46,15 +46,21 @@ exports.XidEvent = function(test) {
 
 exports.formatEventHeader = function(test) {
   var data = [0x00,
-    0xec, 0x14, 0x8e, 0x52, 0x0f, 0x01, 0x00, 0x00, 0x00, 0x74, 0x00,
-    0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00
+    0xec, 0x14, 0x8e, 0x52,
+    0x0f,
+    0x01, 0x00, 0x00, 0x00, // server id
+    0x74, 0x00, 0x00, 0x00, // event length
+    0x78, 0x00, 0x00, 0x00, // next position
+    0x00, 0x00
   ];
 
   var buf = new Buffer(data);
   var params = binlog.parseHeader(buf);
 
   test.equal(params[0], 0x0f);
-  test.equal(params[2], 1385043180000);
+  var options = params[2];
+  test.equal(options.timestamp, 1385043180000);
+  test.equal(options.size, 0x74 - 19);
 
   test.done();
 };
@@ -72,9 +78,11 @@ exports.queryEventHeader = function(test) {
   var buf = new Buffer(data);
   var params = binlog.parseHeader(buf);
   test.equal(params[0], 2);
-  test.equal(params[2], 1385388107000);
-  test.equal(params[3], 992);
-  test.equal(params[4], 316);
+
+  var options = params[2];
+  test.equal(options.timestamp, 1385388107000);
+  test.equal(options.nextPosition, 992);
+  test.equal(options.size, 316);
   test.done();
 };
 
@@ -94,9 +102,12 @@ exports.tablemapEvent = function(test) {
   var buf = new Buffer(data);
   var params = binlog.parseHeader(buf);
   test.equal(params[0], 0x13);
-  test.equal(params[2], 1391487257000); // should return in milliseconds
-  test.equal(params[3], 456);
-  test.equal(params[4], 31);
+
+  var options = params[2];
+  // timestamp is in milliseconds
+  test.equal(options.timestamp, 1391487257000);
+  test.equal(options.nextPosition, 456);
+  test.equal(options.size, 31);
 
   var anEvent = createEvent(data);
   test.ok(anEvent instanceof binlog.TableMap);
