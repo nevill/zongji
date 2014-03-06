@@ -10,8 +10,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "make test",
-    "install": "node-gyp rebuild"
+    "test": "nodeunit --reporter=minimal test",
   },
   "repository": {
     "type": "git",
@@ -23,7 +22,6 @@
   ],
   "author": "Nevill <nevill.dutt@gmail.com>",
   "license": "MIT",
-  "gypfile": true,
   "bugs": {
     "url": "https://github.com/nevill/zongji/issues"
   },
