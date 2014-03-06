@@ -1,36 +1,32 @@
 // Client code
 var ZongJi = require('./');
 
-var mysqlUrl = 'mysql://zongji:zongji@localhost';
-var listener = ZongJi.connect(mysqlUrl);
-
-// listener.setOption({
-//   logLevel: 'debug',
-//   retryLimit: 100,
-//   retryTimeout: 3 });
-
-listener.on('rotate', function(event) {
-  event.dump();
+var connection = ZongJi.connect({
+  host     : 'localhost',
+  user     : 'zongji',
+  password : 'zongji',
+  // debug: true
 });
 
-listener.on('format', function(event) {
-  event.dump();
+connection.connect();
+
+connection.dumpBinlog(function(err, packet) {
+  if (err) {
+    throw err;
+  }
+
+  console.log('binlog dump ====>');
+  console.log('=== %s ===', packet.eventName);
+  console.log('Date: %s', new Date(packet.timestamp));
+  console.log('Next log position: %d', packet.nextPosition);
 });
 
-listener.on('query', function(event) {
-  event.dump();
+process.on('exit', function() {
+  console.log('about to exit');
 });
 
-listener.on('xid', function(event) {
-  event.dump();
+process.on('SIGINT', function() {
+  // connection.end(process.exit);
+  console.log('Got SIGINT.');
+  connection.destroy();
 });
-
-listener.on('tablemap', function(event) {
-  event.dump();
-});
-
-listener.on('unknown', function(event) {
-  event.dump();
-});
-
-listener.start();
