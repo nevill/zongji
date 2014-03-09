@@ -10,7 +10,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "nodeunit --reporter=minimal test",
+    "test": "nodeunit --reporter=minimal test"
   },
   "repository": {
     "type": "git",
