@@ -1,32 +1,20 @@
 // Client code
 var ZongJi = require('./');
 
-var connection = ZongJi.connect({
+var zongji = ZongJi.connect({
   host     : 'localhost',
   user     : 'zongji',
   password : 'zongji',
   // debug: true
 });
 
-connection.connect();
-
-connection.dumpBinlog(function(err, packet) {
-  if (err) {
-    throw err;
-  }
-
-  console.log('binlog dump ====>');
-  console.log('=== %s ===', packet.eventName);
-  console.log('Date: %s', new Date(packet.timestamp));
-  console.log('Next log position: %d', packet.nextPosition);
+zongji.on('binlog', function(evt) {
+  evt.dump();
 });
 
-process.on('exit', function() {
-  console.log('about to exit');
-});
+zongji.start();
 
 process.on('SIGINT', function() {
-  // connection.end(process.exit);
   console.log('Got SIGINT.');
-  connection.destroy();
+  process.exit();
 });

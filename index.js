@@ -21,9 +21,8 @@ ZongJi.prototype.start = function() {
     connection.connect();
     this.ready = true;
   }
-
   connection.dumpBinlog(function(err, packet) {
-    self.emit(packet.eventName, packet);
+    self.emit('binlog', packet);
   });
 };
 
