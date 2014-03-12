@@ -39,7 +39,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   });
 };
 
-ZongJi.prototype.start = function() {
+ZongJi.prototype.start = function(options) {
   var self = this;
   var connection = this.connection;
 
@@ -51,6 +51,14 @@ ZongJi.prototype.start = function() {
   var emitBinlog = function(binlog) {
     self.emit('binlog', binlog);
   };
+
+  if (options && options.filter) {
+    emitBinlog = function(binlog) {
+      if (options.filter.indexOf(binlog.getEventName()) > -1) {
+        self.emit('binlog', binlog);
+      }
+    };
+  }
 
   connection.dumpBinlog(function(err, binlog) {
     if (binlog.getTypeName() === 'TableMap') {
