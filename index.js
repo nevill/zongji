@@ -8,11 +8,11 @@ var patch = require('./lib/patch');
 // to send table info query
 var ctrlConnection;
 
-function ZongJi(connection) {
+function ZongJi(connection, options) {
   EventEmitter.call(this);
   this.connection = connection;
   this.ready = false;
-  this.tableMap = {};
+  this.tableMap = options.tableMap;
 }
 
 util.inherits(ZongJi, EventEmitter);
@@ -90,6 +90,10 @@ exports.connect = function(dsn) {
 
   ctrlConnection.connect();
 
-  patch(capture(connection));
-  return new ZongJi(connection);
+  var options = {
+    tableMap: {},
+  };
+
+  patch(capture(connection), options);
+  return new ZongJi(connection, options);
 };
