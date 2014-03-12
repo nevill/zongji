@@ -69,6 +69,8 @@ ZongJi.prototype.start = function(options) {
       if (!tableMap) {
         connection.pause();
         self._fetchTableInfo(binlog, function() {
+          // merge the column info with metadata
+          binlog.updateColumnInfo();
           emitBinlog(binlog);
           connection.resume();
         });
