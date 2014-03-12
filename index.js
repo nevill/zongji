@@ -17,11 +17,13 @@ function ZongJi(connection, options) {
 
 util.inherits(ZongJi, EventEmitter);
 
-ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
-  var sql = util.format('SELECT ' +
+var queryTemplate = 'SELECT ' +
     'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
     'COLUMN_COMMENT, COLUMN_TYPE ' +
-    'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"',
+    'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"';
+
+ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
+  var sql = util.format(queryTemplate,
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
   var self = this;
