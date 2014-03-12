@@ -12,7 +12,9 @@ zongji.on('binlog', function(evt) {
   evt.dump();
 });
 
-zongji.start();
+zongji.start({
+  filter: ['tablemap', 'writerows', 'updaterows', 'deleterows']
+});
 
 process.on('SIGINT', function() {
   console.log('Got SIGINT.');
