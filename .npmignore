@@ -1,0 +1,11 @@
+.DS_Store
+.git*
+*~
+*.log
+
+test/
+build/
+npm-install-stamp
+
+*.sublime-project
+*.sublime-workspace
