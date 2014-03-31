@@ -8,19 +8,22 @@ var patch = require('./lib/patch');
 // to send table info query
 var ctrlConnection;
 
+var ctrlCallbacks = [];
+
 function ZongJi(connection, options) {
   EventEmitter.call(this);
   this.connection = connection;
   this.ready = false;
+  this.options = options;
   this.tableMap = options.tableMap;
 }
 
 util.inherits(ZongJi, EventEmitter);
 
 var queryTemplate = 'SELECT ' +
-    'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
-    'COLUMN_COMMENT, COLUMN_TYPE ' +
-    'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"';
+  'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
+  'COLUMN_COMMENT, COLUMN_TYPE ' +
+  'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"';
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var sql = util.format(queryTemplate,
@@ -45,11 +48,6 @@ ZongJi.prototype.start = function(options) {
   var self = this;
   var connection = this.connection;
 
-  if (!this.ready) {
-    connection.connect();
-    this.ready = true;
-  }
-
   var emitBinlog = function(binlog) {
     self.emit('binlog', binlog);
   };
@@ -62,24 +60,32 @@ ZongJi.prototype.start = function(options) {
     };
   }
 
-  connection.dumpBinlog(function(err, binlog) {
-    if (binlog.getTypeName() === 'TableMap') {
-      var tableMap = self.tableMap[binlog.tableId];
+  var _start = function() {
+    connection.dumpBinlog(function(err, binlog) {
+      if (binlog.getTypeName() === 'TableMap') {
+        var tableMap = self.tableMap[binlog.tableId];
 
-      if (!tableMap) {
-        connection.pause();
-        self._fetchTableInfo(binlog, function() {
-          // merge the column info with metadata
-          binlog.updateColumnInfo();
-          emitBinlog(binlog);
-          connection.resume();
-        });
-        return;
+        if (!tableMap) {
+          connection.pause();
+          self._fetchTableInfo(binlog, function() {
+            // merge the column info with metadata
+            binlog.updateColumnInfo();
+            emitBinlog(binlog);
+            connection.resume();
+          });
+          return;
+        }
       }
-    }
 
-    emitBinlog(binlog);
-  });
+      emitBinlog(binlog);
+    });
+  };
+
+  if (this.ready) {
+    _start();
+  } else {
+    ctrlCallbacks.push(_start);
+  }
 };
 
 exports.connect = function(dsn) {
@@ -96,8 +102,50 @@ exports.connect = function(dsn) {
 
   var options = {
     tableMap: {},
+    useChecksum: false
   };
 
-  patch(capture(connection), options);
+  var isChecksumEnabled = function(next) {
+    var sql = 'select @@GLOBAL.binlog_checksum as checksum';
+    ctrlConnection.query(sql, function(err, rows) {
+      if (err) {
+        throw err;
+      }
+
+      var checksumEnabled = true;
+      if (rows[0].checksum === 'NONE') {
+        checksumEnabled = false;
+      }
+
+      var finish = function() {
+        next(checksumEnabled);
+
+        if (ctrlCallbacks.length > 0) {
+          ctrlCallbacks.forEach(function(cb) {
+            setImmediate(cb);
+          });
+        }
+      };
+
+      var setChecksumSql = 'set @master_binlog_checksum=@@global.binlog_checksum';
+      if (checksumEnabled) {
+        connection.query(setChecksumSql, function(err) {
+          if (err) {
+            throw err;
+          }
+          finish();
+        });
+      } else {
+        finish();
+      }
+    });
+  };
+
+  isChecksumEnabled(function(checksumEnabled) {
+    options.useChecksum = checksumEnabled;
+    patch(capture(connection), options);
+    this.ready = true;
+  });
+
   return new ZongJi(connection, options);
 };
