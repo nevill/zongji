@@ -14,8 +14,8 @@ Since v0.2.0, The native part(which is written in C++) has been dropped. It is n
 ## Prerequisite
 
 * Node.js v0.10+
-* enable MySQL binlog in `my.cnf`, here is a sample config, remember to restart MySQL server after making the changes.
-  > Notice that binlog checksum is disabled, ZongJi doesn't support it right now. It's a new feature from [MySQL 5.6](https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html).
+* enable MySQL binlog in `my.cnf`, restart MySQL server after making the changes.
+  > From [MySQL 5.6](https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html), binlog checksum is enabled by default. Zongji can work with it, but it doesn't really verify it.
 
   ```
   # binlog config
@@ -27,9 +27,6 @@ Since v0.2.0, The native part(which is written in C++) has been dropped. It is n
 
   #Very important if you want to receive write, update and delete row events
   binlog_format    = row
-
-  # only do it in mysql 5.6
-  binlog_checksum  = none
   ```
 
 ## Reference
