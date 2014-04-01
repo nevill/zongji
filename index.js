@@ -5,20 +5,87 @@ var EventEmitter = require('events').EventEmitter;
 var capture = require('./lib/capture');
 var patch = require('./lib/patch');
 
-// to send table info query
-var ctrlConnection;
-
-var ctrlCallbacks = [];
-
-function ZongJi(connection, options) {
+function ZongJi(dsn) {
   EventEmitter.call(this);
-  this.connection = connection;
+
+  // to send table info query
+  this.ctrlConnection = mysql.createConnection({
+    host: dsn.host,
+    user: dsn.user,
+    password: dsn.password,
+    database: 'information_schema',
+  });
+  this.ctrlConnection.connect();
+  this.ctrlCallbacks = [];
+
+  this.connection = mysql.createConnection(dsn);
+
+  this.tableMap = {};
   this.ready = false;
-  this.options = options;
-  this.tableMap = options.tableMap;
+  this.useChecksum = false;
+
+  this._init();
 }
 
 util.inherits(ZongJi, EventEmitter);
+
+ZongJi.prototype._init = function() {
+  var self = this;
+
+  this._isChecksumEnabled(function(checksumEnabled) {
+    self.useChecksum = checksumEnabled;
+
+    var options = {
+      tableMap: self.tableMap,
+      useChecksum: checksumEnabled
+    };
+
+    patch(capture(self.connection), options);
+    self.ready = true;
+  });
+};
+
+
+ZongJi.prototype._isChecksumEnabled = function(next) {
+  var sql = 'select @@GLOBAL.binlog_checksum as checksum';
+  var ctrlConnection = this.ctrlConnection;
+  var ctrlCallbacks = this.ctrlCallbacks;
+  var connection = this.connection;
+
+  ctrlConnection.query(sql, function(err, rows) {
+    if (err) {
+      throw err;
+    }
+
+    var checksumEnabled = true;
+    if (rows[0].checksum === 'NONE') {
+      checksumEnabled = false;
+    }
+
+    var finish = function() {
+      next(checksumEnabled);
+
+      if (ctrlCallbacks.length > 0) {
+        ctrlCallbacks.forEach(function(cb) {
+          setImmediate(cb);
+        });
+      }
+    };
+
+    var setChecksumSql = 'set @master_binlog_checksum=@@global.binlog_checksum';
+    if (checksumEnabled) {
+      connection.query(setChecksumSql, function(err) {
+        if (err) {
+          throw err;
+        }
+        finish();
+      });
+    } else {
+      finish();
+    }
+  });
+};
+
 
 var queryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
@@ -31,7 +98,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
 
   var self = this;
 
-  ctrlConnection.query(sql, function(err, rows) {
+  this.ctrlConnection.query(sql, function(err, rows) {
     if (err) {
       throw err;
     }
@@ -84,68 +151,8 @@ ZongJi.prototype.start = function(options) {
   if (this.ready) {
     _start();
   } else {
-    ctrlCallbacks.push(_start);
+    this.ctrlCallbacks.push(_start);
   }
 };
 
-exports.connect = function(dsn) {
-  var connection = mysql.createConnection(dsn);
-
-  ctrlConnection = mysql.createConnection({
-    host: dsn.host,
-    user: dsn.user,
-    password: dsn.password,
-    database: 'information_schema',
-  });
-
-  ctrlConnection.connect();
-
-  var options = {
-    tableMap: {},
-    useChecksum: false
-  };
-
-  var isChecksumEnabled = function(next) {
-    var sql = 'select @@GLOBAL.binlog_checksum as checksum';
-    ctrlConnection.query(sql, function(err, rows) {
-      if (err) {
-        throw err;
-      }
-
-      var checksumEnabled = true;
-      if (rows[0].checksum === 'NONE') {
-        checksumEnabled = false;
-      }
-
-      var finish = function() {
-        next(checksumEnabled);
-
-        if (ctrlCallbacks.length > 0) {
-          ctrlCallbacks.forEach(function(cb) {
-            setImmediate(cb);
-          });
-        }
-      };
-
-      var setChecksumSql = 'set @master_binlog_checksum=@@global.binlog_checksum';
-      if (checksumEnabled) {
-        connection.query(setChecksumSql, function(err) {
-          if (err) {
-            throw err;
-          }
-          finish();
-        });
-      } else {
-        finish();
-      }
-    });
-  };
-
-  isChecksumEnabled(function(checksumEnabled) {
-    options.useChecksum = checksumEnabled;
-    patch(capture(connection), options);
-    this.ready = true;
-  });
-
-  return new ZongJi(connection, options);
-};
+module.exports = ZongJi;

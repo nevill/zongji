@@ -1,7 +1,7 @@
 // Client code
 var ZongJi = require('./');
 
-var zongji = ZongJi.connect({
+var zongji = new ZongJi({
   host     : 'localhost',
   user     : 'zongji',
   password : 'zongji',
