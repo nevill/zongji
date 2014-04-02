@@ -28,6 +28,8 @@ Since v0.2.0, The native part(which is written in C++) has been dropped. It is n
   #Very important if you want to receive write, update and delete row events
   binlog_format    = row
   ```
+* create an account with replication privileges, e.g. given privileges to account 'zongji'
+  ```GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'zongji'@'localhost'```
 
 ## Reference
 
