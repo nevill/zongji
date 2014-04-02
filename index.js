@@ -34,22 +34,21 @@ ZongJi.prototype._init = function() {
 
   this._isChecksumEnabled(function(checksumEnabled) {
     self.useChecksum = checksumEnabled;
-
     var options = {
       tableMap: self.tableMap,
-      useChecksum: checksumEnabled
+      useChecksum: checksumEnabled,
     };
 
     patch(capture(self.connection), options);
     self.ready = true;
+
+    self._executeCtrlCallbacks();
   });
 };
-
 
 ZongJi.prototype._isChecksumEnabled = function(next) {
   var sql = 'select @@GLOBAL.binlog_checksum as checksum';
   var ctrlConnection = this.ctrlConnection;
-  var ctrlCallbacks = this.ctrlCallbacks;
   var connection = this.connection;
 
   ctrlConnection.query(sql, function(err, rows) {
@@ -62,30 +61,27 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
       checksumEnabled = false;
     }
 
-    var finish = function() {
-      next(checksumEnabled);
-
-      if (ctrlCallbacks.length > 0) {
-        ctrlCallbacks.forEach(function(cb) {
-          setImmediate(cb);
-        });
-      }
-    };
-
     var setChecksumSql = 'set @master_binlog_checksum=@@global.binlog_checksum';
     if (checksumEnabled) {
       connection.query(setChecksumSql, function(err) {
         if (err) {
           throw err;
         }
-        finish();
+        next(checksumEnabled);
       });
     } else {
-      finish();
+      next(checksumEnabled);
     }
   });
 };
 
+ZongJi.prototype._executeCtrlCallbacks = function() {
+  if (this.ctrlCallbacks.length > 0) {
+    this.ctrlCallbacks.forEach(function(cb) {
+      setImmediate(cb);
+    });
+  }
+};
 
 var queryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
