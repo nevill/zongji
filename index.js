@@ -53,6 +53,10 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
 
   ctrlConnection.query(sql, function(err, rows) {
     if (err) {
+      if(err.toString().match(/ER_UNKNOWN_SYSTEM_VARIABLE/)){
+        // MySQL < 5.6.2 does not support @@GLOBAL.binlog_checksum
+        return next(false);
+      }
       throw err;
     }
 
