@@ -7,6 +7,10 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
 Not all the data types in Mysql are supported, I will keep working on that.
 
+Implemented | Still To Do
+------------|-------------------------------------
+<ul><li>TINY<li>SHORT<li>**YEAR**<li>LONG<li>**INT24**<li>**LONGLONG**<li>**SET**<li>VAR_STRING<li>VARCHAR<li>STRING</ul> | <ul><li>DECIMAL<li>FLOAT<li>DOUBLE<li>NULL<li>TIMESTAMP<li>DATE<li>TIME<li>DATETIME<li>NEWDATE<li>BIT<li>NEWDECIMAL<li>ENUM<li>TINY_BLOB<li>MEDIUM_BLOB<li>LONG_BLOB<li>BLOB<li>GEOMETRY</ul>
+
 ## Rewrite
 
 Since v0.2.0, The native part(which is written in C++) has been dropped. It is now a pure JS implementation based on [node-mysql](https://github.com/felixge/node-mysql), or you can say it is a patch on `node-mysql`.
@@ -31,6 +35,11 @@ Since v0.2.0, The native part(which is written in C++) has been dropped. It is n
 * create an account with replication privileges, e.g. given privileges to account 'zongji'
   ```GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'zongji'@'localhost'```
 
+## Run Tests
+
+* Configure MySQL in `test/settings/mysql.js`
+* Run `npm test`
+
 ## Reference
 
 I learnt many things from following resources while making ZongJi.
@@ -43,5 +52,5 @@ I learnt many things from following resources while making ZongJi.
 * http://dev.mysql.com/doc/internals/en/replication-protocol.html
 * http://www.cs.wichita.edu/~chang/lecture/cs742/program/how-mysql-c-api.html
 
-### License
+## License
 MIT

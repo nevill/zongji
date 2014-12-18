@@ -21,3 +21,6 @@ node_modules
 
 build/
 npm-install-stamp
+*.swo
+*.swp
+ben.js
