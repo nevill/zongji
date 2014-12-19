@@ -8,9 +8,26 @@ var mysql = require('mysql');
 var eventLog = [];
 var zongji, db, esc, escId;
 
+var checkTableMatches = function(tableName){
+  return function(test, event){
+    var tableDetails = event.tableMap[event.tableId]; 
+    test.strictEqual(tableDetails.parentSchema, SETTINGS.database);
+    test.strictEqual(tableDetails.tableName, tableName);
+  };
+};
+
+// For use with expectEvents()
+var tableMapEvent = function(tableName){
+  return {
+    _type: 'TableMap',
+    tableName: tableName,
+    schemaName: SETTINGS.database
+  };
+};
 
 module.exports = {
   setUp: function(done){
+    if(db) return done(); // Only connect on first setUp
     db = mysql.createConnection(SETTINGS.connection);
     esc = db.escape.bind(db);
     escId = db.escapeId;
@@ -36,6 +53,7 @@ module.exports = {
     });
   },
   tearDown: function(done){
+    eventLog.splice(0, eventLog.length);
     done();
   },
   testTypeSet: function(test){
@@ -48,19 +66,11 @@ module.exports = {
       'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
         '("a,d"), ("d,a,b"), ("a,d,i,z"), ("a,j,d"), ("d,a,p")'
     ], function(){
-      expectEvents(test, eventLog.splice(0, eventLog.length), [
-        {
-          _type: 'TableMap',
-          tableName: testTable,
-          schemaName: SETTINGS.database
-        },
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
         {
           _type: 'WriteRows',
-          _custom: function(test, event){
-            var tableDetails = event.tableMap[event.tableId]; 
-            test.strictEqual(tableDetails.parentSchema, SETTINGS.database);
-            test.strictEqual(tableDetails.tableName, testTable);
-          },
+          _checkTableMap: checkTableMatches(testTable),
           rows: [
             { col: [ 'a', 'd' ] },
             { col: [ 'a', 'b', 'd' ] },
@@ -68,6 +78,60 @@ module.exports = {
             { col: [ 'a', 'd', 'j' ] },
             { col: [ 'a', 'd', 'p' ] }
           ]
+        }
+      ]);
+      test.done();
+    });
+  },
+  testTypeDouble: function(test){
+    var testTable = 'type_double';
+    querySequence(db, [
+      'DROP TABLE IF EXISTS ' + escId(testTable),
+      'CREATE TABLE ' + escId(testTable) + ' (col DOUBLE NULL)',
+      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+        '(1.0), (-1.0), (123.456), (-13.47),' +
+        '(44441231231231231223999.123), (-44441231231231231223999.123)'
+    ], function(){
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
+        {
+          _type: 'WriteRows',
+          _checkTableMap: checkTableMatches(testTable),
+          rows: [
+            { col: 1 },
+            { col: -1 },
+            { col: 123.456 },
+            { col: -13.47 },
+            { col: 44441231231231231223999.123 }, // > 2^32
+            { col: -44441231231231231223999.123 }
+          ]
+        }
+      ]);
+      test.done();
+    });
+  },
+  testTypeFloat: function(test){
+    console.log(' ');
+    var testTable = 'type_float';
+    querySequence(db, [
+      'DROP TABLE IF EXISTS ' + escId(testTable),
+      'CREATE TABLE ' + escId(testTable) + ' (col FLOAT NULL)',
+      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+        '(1.0), (-1.0), (123.456), (-13.47), (3999.123)'
+    ], function(){
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
+        {
+          _type: 'WriteRows',
+          _checkTableMap: checkTableMatches(testTable),
+          _fuzzy: function(test, event){
+            // Ensure sum of differences is very low
+            var rowsExp = [ 1, -1, 123.456, -13.47, 3999.123 ];
+            var diff = event.rows.reduce(function(prev, cur, index){
+              return prev + Math.abs(cur.col - rowsExp[index]);
+            }, 0);
+            test.ok(diff < 0.0001);
+          }
         }
       ]);
       test.done();
