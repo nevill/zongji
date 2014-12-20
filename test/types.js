@@ -111,7 +111,6 @@ module.exports = {
     });
   },
   testTypeFloat: function(test){
-    console.log(' ');
     var testTable = 'type_float';
     querySequence(db, [
       'DROP TABLE IF EXISTS ' + escId(testTable),
@@ -132,6 +131,33 @@ module.exports = {
             }, 0);
             test.ok(diff < 0.0001);
           }
+        }
+      ]);
+      test.done();
+    });
+  },
+  testTypeDecimal: function(test){
+    var testTable = 'type_decimal';
+    querySequence(db, [
+      'DROP TABLE IF EXISTS ' + escId(testTable),
+      'CREATE TABLE ' + escId(testTable) + ' (col DECIMAL(30, 10) NULL)',
+      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+        '(1.0), (-1.0), (123.456), (-13.47),' +
+        '(123456789.123), (-123456789.123)'
+    ], function(){
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
+        {
+          _type: 'WriteRows',
+          _checkTableMap: checkTableMatches(testTable),
+          rows: [
+            { col: 1 },
+            { col: -1 },
+            { col: 123.456 },
+            { col: -13.47 },
+            { col: 123456789.123 },
+            { col: -123456789.123 }
+          ]
         }
       ]);
       test.done();
