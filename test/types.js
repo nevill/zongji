@@ -64,7 +64,7 @@ module.exports = {
          '"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", ' +
          '"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"));',
       'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
-        '("a,d"), ("d,a,b"), ("a,d,i,z"), ("a,j,d"), ("d,a,p")'
+        '("a,d"), ("d,a,b"), ("a,d,i,z"), ("a,j,d"), ("d,a,p"), (null)'
     ], function(){
       expectEvents(test, eventLog, [
         tableMapEvent(testTable),
@@ -76,7 +76,8 @@ module.exports = {
             { col: [ 'a', 'b', 'd' ] },
             { col: [ 'a', 'd', 'i', 'z' ] },
             { col: [ 'a', 'd', 'j' ] },
-            { col: [ 'a', 'd', 'p' ] }
+            { col: [ 'a', 'd', 'p' ] },
+            { col: null }
           ]
         }
       ]);
@@ -90,7 +91,7 @@ module.exports = {
       'CREATE TABLE ' + escId(testTable) + ' (col DOUBLE NULL)',
       'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
         '(1.0), (-1.0), (123.456), (-13.47),' +
-        '(44441231231231231223999.123), (-44441231231231231223999.123)'
+        '(44441231231231231223999.123), (-44441231231231231223999.123), (null)'
     ], function(){
       expectEvents(test, eventLog, [
         tableMapEvent(testTable),
@@ -103,7 +104,8 @@ module.exports = {
             { col: 123.456 },
             { col: -13.47 },
             { col: 44441231231231231223999.123 }, // > 2^32
-            { col: -44441231231231231223999.123 }
+            { col: -44441231231231231223999.123 },
+            { col: null }
           ]
         }
       ]);
@@ -143,7 +145,7 @@ module.exports = {
       'CREATE TABLE ' + escId(testTable) + ' (col DECIMAL(30, 10) NULL)',
       'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
         '(1.0), (-1.0), (123.456), (-13.47),' +
-        '(123456789.123), (-123456789.123)'
+        '(123456789.123), (-123456789.123), (null)'
     ], function(){
       expectEvents(test, eventLog, [
         tableMapEvent(testTable),
@@ -156,7 +158,8 @@ module.exports = {
             { col: 123.456 },
             { col: -13.47 },
             { col: 123456789.123 },
-            { col: -123456789.123 }
+            { col: -123456789.123 },
+            { col: null }
           ]
         }
       ]);
@@ -174,7 +177,8 @@ module.exports = {
         'col4 LONGBLOB NULL)',
       'INSERT INTO ' + escId(testTable) + ' (col1, col2, col3, col4) VALUES ' +
         '("something here", "tiny", "medium", "long"), ' +
-        '("nothing there", "small", "average", "huge")'
+        '("nothing there", "small", "average", "huge"), ' +
+        '(null, null, null, null)'
     ], function(){
       expectEvents(test, eventLog, [
         tableMapEvent(testTable),
@@ -189,7 +193,11 @@ module.exports = {
             { col1: 'nothing there',
               col2: 'small',
               col3: 'average',
-              col4: 'huge' }
+              col4: 'huge' },
+            { col1: null,
+              col2: null,
+              col3: null,
+              col4: null }
           ]
         }
       ]);
