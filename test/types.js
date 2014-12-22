@@ -162,5 +162,38 @@ module.exports = {
       ]);
       test.done();
     });
+  },
+  testTypeBlob: function(test){
+    var testTable = 'type_blob';
+    querySequence(db, [
+      'DROP TABLE IF EXISTS ' + escId(testTable),
+      'CREATE TABLE ' + escId(testTable) + ' (' +
+        'col1 BLOB NULL, ' +
+        'col2 TINYBLOB NULL, ' +
+        'col3 MEDIUMBLOB NULL, ' +
+        'col4 LONGBLOB NULL)',
+      'INSERT INTO ' + escId(testTable) + ' (col1, col2, col3, col4) VALUES ' +
+        '("something here", "tiny", "medium", "long"), ' +
+        '("nothing there", "small", "average", "huge")'
+    ], function(){
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
+        {
+          _type: 'WriteRows',
+          _checkTableMap: checkTableMatches(testTable),
+          rows: [
+            { col1: 'something here',
+              col2: 'tiny',
+              col3: 'medium',
+              col4: 'long' },
+            { col1: 'nothing there',
+              col2: 'small',
+              col3: 'average',
+              col4: 'huge' }
+          ]
+        }
+      ]);
+      test.done();
+    });
   }
 }
