@@ -9,13 +9,14 @@ Not all the data types in Mysql are supported, I will keep working on that.
 
 Implemented | Still To Do
 ------------|-------------------------------------
-<ul><li>TINY✱<li>SHORT✱<li>**YEAR**✱<li>LONG✱<li>**INT24**✱<li>**LONGLONG**✱<li>**FLOAT**<li>**DOUBLE**<li>**NEWDECIMAL**<li>**SET**<li>VAR_STRING✱<li>VARCHAR✱<li>STRING✱<li>**TINY_BLOB**<li>**MEDIUM_BLOB**<li>**LONG_BLOB**<li>**BLOB**</ul> | <ul><li>~~DECIMAL~~ *Deprecated as of MySQL 5.0.3*<li>~~NULL~~ *Supported otherwise*<li>TIMESTAMP<li>DATE<li>TIME<li>DATETIME<li>NEWDATE<li>BIT<li>ENUM<li>GEOMETRY</ul>
+<ul><li>TINY<li>SHORT<li>LONG<li>**INT24**<li>**LONGLONG**<li>**FLOAT**<li>**DOUBLE**<li>**NEWDECIMAL**<li>**SET**<li>VAR_STRING✱<li>VARCHAR✱<li>STRING✱<li>**TINY_BLOB**<li>**MEDIUM_BLOB**<li>**LONG_BLOB**<li>**BLOB**</ul> | <ul><li>~~DECIMAL~~ *Deprecated as of MySQL 5.0.3*<li>~~NULL~~ *Supported otherwise*<li>TIMESTAMP<li>DATE<li>TIME<li>DATETIME<li>YEAR<li>NEWDATE<li>BIT<li>ENUM<li>GEOMETRY</ul>
 
 ✱ Still needs test
 
 **Notes**
 
 * `NULL` value support requires a bitmap to each field. Due to current usage of Javascript's bitwise operators and their inability to handle integers greater than 32-bits, the current maximum number of fields on a table is 32.
+* While 64-bit integers in MySQL (`bigint` type) allow values in the range of 2<sup>64</sup> (± ½ × 2<sup>64</sup> for signed values), Javascript's internal storage of numbers limits values to 2<sup>53</sup>, making the allowed range of `bigint` fields only `-9007199254740992` to `9007199254740992`. Unsigned 64-bit integers must also not exceed `9007199254740992`.
 
 ## Rewrite
 

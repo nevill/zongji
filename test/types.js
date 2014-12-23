@@ -84,13 +84,123 @@ module.exports = {
       test.done();
     });
   },
+  testTypeIntSigned: function(test){
+    var testTable = 'type_int_signed';
+    querySequence(db, [
+      'DROP TABLE IF EXISTS ' + escId(testTable),
+      'CREATE TABLE ' + escId(testTable) + ' (' +
+        'col1 INT SIGNED NULL, ' +
+        'col2 BIGINT SIGNED NULL, ' +
+        'col3 TINYINT SIGNED NULL, ' +
+        'col4 SMALLINT SIGNED NULL, ' +
+        'col5 MEDIUMINT SIGNED NULL)',
+      'INSERT INTO ' + escId(testTable) +
+        ' (col1, col2, col3, col4, col5) VALUES ' +
+          '(2147483647, 9007199254740992, 127, 32767, 8388607), ' +
+          '(-2147483648, -9007199254740992, -128, -32768, -8388608), ' +
+          '(-2147483645, -9007199254740990, -126, -32766, -8388606), ' +
+          '(-1, -1, -1, -1, -1), ' +
+          '(123456, 100, 96, 300, 1000), ' +
+          '(-123456, -100, -96, -300, -1000)'
+    ], function(){
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
+        {
+          _type: 'WriteRows',
+          _checkTableMap: checkTableMatches(testTable),
+          rows: [
+            { col1: 2147483647,
+              col2: 9007199254740992,
+              col3: 127,
+              col4: 32767,
+              col5: 8388607 },
+            { col1: -2147483648,
+              col2: -9007199254740992,
+              col3: -128,
+              col4: -32768,
+              col5: -8388608 },
+            { col1: -2147483645,
+              col2: -9007199254740990,
+              col3: -126,
+              col4: -32766,
+              col5: -8388606 },
+            { col1: -1,
+              col2: -1,
+              col3: -1,
+              col4: -1,
+              col5: -1 },
+            { col1: 123456,
+              col2: 100,
+              col3: 96,
+              col4: 300,
+              col5: 1000 },
+            { col1: -123456,
+              col2: -100,
+              col3: -96,
+              col4: -300,
+              col5: -1000 }
+          ]
+        }
+      ]);
+      test.done();
+    });
+  },
+  testTypeIntUnsigned: function(test){
+    var testTable = 'type_int_unsigned';
+    querySequence(db, [
+      'DROP TABLE IF EXISTS ' + escId(testTable),
+      'CREATE TABLE ' + escId(testTable) + ' (' +
+        'col1 INT UNSIGNED NULL, ' +
+        'col2 BIGINT UNSIGNED NULL, ' +
+        'col3 TINYINT UNSIGNED NULL, ' +
+        'col4 SMALLINT UNSIGNED NULL, ' +
+        'col5 MEDIUMINT UNSIGNED NULL)',
+      'INSERT INTO ' + escId(testTable) +
+        ' (col1, col2, col3, col4, col5) VALUES ' +
+          '(4294967295, 9007199254740992, 255, 65535, 16777215), ' +
+          '(1, 1, 1, 1, 1), ' +
+          '(1, 8589934591, 1, 1, 1), ' +
+          '(123456, 100, 96, 300, 1000)'
+    ], function(){
+      expectEvents(test, eventLog, [
+        tableMapEvent(testTable),
+        {
+          _type: 'WriteRows',
+          _checkTableMap: checkTableMatches(testTable),
+          rows: [
+            { col1: 4294967295,
+              col2: 9007199254740992,
+              col3: 255,
+              col4: 65535,
+              col5: 16777215 },
+            { col1: 1,
+              col2: 1,
+              col3: 1,
+              col4: 1,
+              col5: 1 },
+            { col1: 1,
+              col2: 8589934591,
+              col3: 1,
+              col4: 1,
+              col5: 1 },
+            { col1: 123456,
+              col2: 100,
+              col3: 96,
+              col4: 300,
+              col5: 1000 }
+          ]
+        }
+      ]);
+      test.done();
+    });
+  },
   testTypeDouble: function(test){
     var testTable = 'type_double';
     querySequence(db, [
       'DROP TABLE IF EXISTS ' + escId(testTable),
       'CREATE TABLE ' + escId(testTable) + ' (col DOUBLE NULL)',
       'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
-        '(1.0), (-1.0), (123.456), (-13.47),' +
+        '(1.0), (-1.0), (123.456), (-13.47), (0.00005), (-0.00005), ' +
         '(44441231231231231223999.123), (-44441231231231231223999.123), (null)'
     ], function(){
       expectEvents(test, eventLog, [
@@ -103,7 +213,9 @@ module.exports = {
             { col: -1 },
             { col: 123.456 },
             { col: -13.47 },
-            { col: 44441231231231231223999.123 }, // > 2^32
+            { col: 0.00005 },
+            { col: -0.00005 },
+            { col: 44441231231231231223999.123 }, // > 2^32 (not actual value)
             { col: -44441231231231231223999.123 },
             { col: null }
           ]
