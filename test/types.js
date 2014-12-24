@@ -1,17 +1,14 @@
-var SETTINGS = require('./settings/mysql');
+var settings = require('./settings/mysql');
+var connector =  require('./helpers/connector');
 var querySequence = require('./helpers/querySequence');
 var expectEvents = require('./helpers/expectEvents');
 
-var ZongJi = require('./../');
-var mysql = require('mysql');
-
-var eventLog = [];
-var zongji, db, esc, escId;
+var conn = process.testZongJi || {};
 
 var checkTableMatches = function(tableName){
   return function(test, event){
     var tableDetails = event.tableMap[event.tableId]; 
-    test.strictEqual(tableDetails.parentSchema, SETTINGS.database);
+    test.strictEqual(tableDetails.parentSchema, settings.database);
     test.strictEqual(tableDetails.tableName, tableName);
   };
 };
@@ -21,52 +18,30 @@ var tableMapEvent = function(tableName){
   return {
     _type: 'TableMap',
     tableName: tableName,
-    schemaName: SETTINGS.database
+    schemaName: settings.database
   };
 };
 
 module.exports = {
   setUp: function(done){
-    if(db) return done(); // Only connect on first setUp
-    db = mysql.createConnection(SETTINGS.connection);
-    esc = db.escape.bind(db);
-    escId = db.escapeId;
-
-    // Perform initialization queries sequentially
-    querySequence(db, [
-      'DROP DATABASE IF EXISTS ' + escId(SETTINGS.database),
-      'CREATE DATABASE ' + escId(SETTINGS.database),
-      'USE ' + escId(SETTINGS.database),
-      'RESET MASTER',
-    ], function(){
-      zongji = new ZongJi(SETTINGS.connection);
-
-      zongji.on('binlog', function(evt) {
-        eventLog.push(evt);
-      });
-
-      zongji.start({
-        filter: ['tablemap', 'writerows', 'updaterows', 'deleterows']
-      });
-
-      done();
-    });
+    if(!conn.db) process.testZongJi = connector.call(conn, settings, done);
+    else done();
   },
   tearDown: function(done){
-    eventLog.splice(0, eventLog.length);
+    conn && conn.eventLog.splice(0, conn.eventLog.length);
     done();
   },
   testTypeSet: function(test){
     var testTable = 'type_set';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (col SET(' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col SET(' +
          '"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", ' +
          '"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"));',
-      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES ' +
         '("a,d"), ("d,a,b"), ("a,d,i,z"), ("a,j,d"), ("d,a,p"), (null)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',
@@ -86,15 +61,15 @@ module.exports = {
   },
   testTypeIntSigned: function(test){
     var testTable = 'type_int_signed';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (' +
         'col1 INT SIGNED NULL, ' +
         'col2 BIGINT SIGNED NULL, ' +
         'col3 TINYINT SIGNED NULL, ' +
         'col4 SMALLINT SIGNED NULL, ' +
         'col5 MEDIUMINT SIGNED NULL)',
-      'INSERT INTO ' + escId(testTable) +
+      'INSERT INTO ' + conn.escId(testTable) +
         ' (col1, col2, col3, col4, col5) VALUES ' +
           '(2147483647, 9007199254740992, 127, 32767, 8388607), ' +
           '(-2147483648, -9007199254740992, -128, -32768, -8388608), ' +
@@ -103,7 +78,7 @@ module.exports = {
           '(123456, 100, 96, 300, 1000), ' +
           '(-123456, -100, -96, -300, -1000)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',
@@ -147,22 +122,22 @@ module.exports = {
   },
   testTypeIntUnsigned: function(test){
     var testTable = 'type_int_unsigned';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (' +
         'col1 INT UNSIGNED NULL, ' +
         'col2 BIGINT UNSIGNED NULL, ' +
         'col3 TINYINT UNSIGNED NULL, ' +
         'col4 SMALLINT UNSIGNED NULL, ' +
         'col5 MEDIUMINT UNSIGNED NULL)',
-      'INSERT INTO ' + escId(testTable) +
+      'INSERT INTO ' + conn.escId(testTable) +
         ' (col1, col2, col3, col4, col5) VALUES ' +
           '(4294967295, 9007199254740992, 255, 65535, 16777215), ' +
           '(1, 1, 1, 1, 1), ' +
           '(1, 8589934591, 1, 1, 1), ' +
           '(123456, 100, 96, 300, 1000)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',
@@ -196,14 +171,14 @@ module.exports = {
   },
   testTypeDouble: function(test){
     var testTable = 'type_double';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (col DOUBLE NULL)',
-      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col DOUBLE NULL)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES ' +
         '(1.0), (-1.0), (123.456), (-13.47), (0.00005), (-0.00005), ' +
         '(44441231231231231223999.123), (-44441231231231231223999.123), (null)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',
@@ -226,13 +201,13 @@ module.exports = {
   },
   testTypeFloat: function(test){
     var testTable = 'type_float';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (col FLOAT NULL)',
-      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col FLOAT NULL)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES ' +
         '(1.0), (-1.0), (123.456), (-13.47), (3999.123)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',
@@ -252,14 +227,14 @@ module.exports = {
   },
   testTypeDecimal: function(test){
     var testTable = 'type_decimal';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (col DECIMAL(30, 10) NULL)',
-      'INSERT INTO ' + escId(testTable) + ' (col) VALUES ' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col DECIMAL(30, 10) NULL)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES ' +
         '(1.0), (-1.0), (123.456), (-13.47),' +
         '(123456789.123), (-123456789.123), (null)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',
@@ -280,19 +255,19 @@ module.exports = {
   },
   testTypeBlob: function(test){
     var testTable = 'type_blob';
-    querySequence(db, [
-      'DROP TABLE IF EXISTS ' + escId(testTable),
-      'CREATE TABLE ' + escId(testTable) + ' (' +
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (' +
         'col1 BLOB NULL, ' +
         'col2 TINYBLOB NULL, ' +
         'col3 MEDIUMBLOB NULL, ' +
         'col4 LONGBLOB NULL)',
-      'INSERT INTO ' + escId(testTable) + ' (col1, col2, col3, col4) VALUES ' +
+      'INSERT INTO ' + conn.escId(testTable) + ' (col1, col2, col3, col4) VALUES ' +
         '("something here", "tiny", "medium", "long"), ' +
         '("nothing there", "small", "average", "huge"), ' +
         '(null, null, null, null)'
     ], function(){
-      expectEvents(test, eventLog, [
+      expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
           _type: 'WriteRows',

@@ -17,6 +17,7 @@ Implemented | Still To Do
 
 * `NULL` value support requires a bitmap to each field. Due to current usage of Javascript's bitwise operators and their inability to handle integers greater than 32-bits, the current maximum number of fields on a table is 32.
 * While 64-bit integers in MySQL (`bigint` type) allow values in the range of 2<sup>64</sup> (± ½ × 2<sup>64</sup> for signed values), Javascript's internal storage of numbers limits values to 2<sup>53</sup>, making the allowed range of `bigint` fields only `-9007199254740992` to `9007199254740992`. Unsigned 64-bit integers must also not exceed `9007199254740992`.
+* `TRUNCATE` statement does not cause corresponding `DeleteRows` event. Use unqualified `DELETE FROM` for same effect.
 
 ## Rewrite
 

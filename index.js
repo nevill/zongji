@@ -131,6 +131,7 @@ ZongJi.prototype.start = function(options) {
 
   var _start = function() {
     connection.dumpBinlog(function(err, binlog) {
+      if(err) throw err;
       if (binlog.getTypeName() === 'TableMap') {
         var tableMap = self.tableMap[binlog.tableId];
 
