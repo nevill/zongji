@@ -1,9 +1,7 @@
 var mysql = require('mysql');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
-
-var capture = require('./lib/capture');
-var patch = require('./lib/patch');
+var generateBinlog = require('./lib/sequence/binlog');
 
 function ZongJi(dsn) {
   EventEmitter.call(this);
@@ -39,7 +37,7 @@ ZongJi.prototype._init = function() {
       useChecksum: checksumEnabled,
     };
 
-    patch(capture(self.connection), options);
+    self.binlog = generateBinlog(self.connection, options);
     self.ready = true;
 
     self._executeCtrlCallbacks();
@@ -130,25 +128,26 @@ ZongJi.prototype.start = function(options) {
   }
 
   var _start = function() {
-    connection.dumpBinlog(function(err, binlog) {
+    connection._implyConnect();
+    connection._protocol._enqueue(new self.binlog(function(err, event) {
       if(err) throw err;
-      if (binlog.getTypeName() === 'TableMap') {
-        var tableMap = self.tableMap[binlog.tableId];
+      if (event.getTypeName() === 'TableMap') {
+        var tableMap = self.tableMap[event.tableId];
 
         if (!tableMap) {
           connection.pause();
-          self._fetchTableInfo(binlog, function() {
+          self._fetchTableInfo(event, function() {
             // merge the column info with metadata
-            binlog.updateColumnInfo();
-            emitBinlog(binlog);
+            event.updateColumnInfo();
+            emitBinlog(event);
             connection.resume();
           });
           return;
         }
       }
 
-      emitBinlog(binlog);
-    });
+      emitBinlog(event);
+    }));
   };
 
   if (this.ready) {
