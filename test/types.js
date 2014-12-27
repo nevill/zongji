@@ -29,6 +29,7 @@ module.exports = {
   },
   tearDown: function(done){
     conn && conn.eventLog.splice(0, conn.eventLog.length);
+    conn && conn.errorLog.splice(0, conn.errorLog.length);
     done();
   },
   testTypeSet: function(test){
@@ -56,6 +57,7 @@ module.exports = {
           ]
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   },
@@ -117,6 +119,7 @@ module.exports = {
           ]
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   },
@@ -166,6 +169,7 @@ module.exports = {
           ]
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   },
@@ -196,6 +200,7 @@ module.exports = {
           ]
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   },
@@ -222,6 +227,7 @@ module.exports = {
           }
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   },
@@ -250,6 +256,7 @@ module.exports = {
           ]
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   },
@@ -288,6 +295,7 @@ module.exports = {
           ]
         }
       ]);
+      test.equal(conn.errorLog.length, 0);
       test.done();
     });
   }

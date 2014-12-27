@@ -8,7 +8,7 @@ var zongji = new ZongJi({
   // debug: true
 });
 
-zongji.on('binlog', function(evt) {
+zongji.on('binlog', function(error, evt) {
   evt.dump();
 });
 

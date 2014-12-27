@@ -8,6 +8,9 @@ module.exports = function(settings, callback){
   var esc =      self.esc =      db.escape.bind(db);
   var escId =    self.escId =    db.escapeId;
   var eventLog = self.eventLog = [];
+  var errorLog = self.errorLog = [];
+
+  self.dbName = settings.database;
 
   // Perform initialization queries sequentially
   querySequence(db, [
@@ -18,8 +21,9 @@ module.exports = function(settings, callback){
   ], function(){
     zongji = new ZongJi(settings.connection);
 
-    zongji.on('binlog', function(evt) {
-      eventLog.push(evt);
+    zongji.on('binlog', function(error, event) {
+      if(error) errorLog.push(error);
+      else eventLog.push(event);
     });
 
     zongji.start({

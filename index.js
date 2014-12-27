@@ -115,22 +115,24 @@ ZongJi.prototype.start = function(options) {
   var self = this;
   var connection = this.connection;
 
-  var emitBinlog = function(binlog) {
-    self.emit('binlog', binlog);
+  var emitBinlog = function(error, binlog) {
+    self.emit('binlog', error, binlog);
   };
 
   if (options && options.filter) {
-    emitBinlog = function(binlog) {
-      if (options.filter.indexOf(binlog.getEventName()) > -1) {
-        self.emit('binlog', binlog);
+    emitBinlog = function(error, binlog) {
+      if(error) {
+        self.emit('binlog', error);
+      } else if (options.filter.indexOf(binlog.getEventName()) > -1) {
+        self.emit('binlog', undefined, binlog);
       }
     };
   }
 
   var _start = function() {
     connection._implyConnect();
-    connection._protocol._enqueue(new self.binlog(function(err, event) {
-      if(err) throw err;
+    connection._protocol._enqueue(new self.binlog(function(error, event) {
+      if(error) return emitBinlog(error);
       if (event.getTypeName() === 'TableMap') {
         var tableMap = self.tableMap[event.tableId];
 
@@ -139,14 +141,14 @@ ZongJi.prototype.start = function(options) {
           self._fetchTableInfo(event, function() {
             // merge the column info with metadata
             event.updateColumnInfo();
-            emitBinlog(event);
+            emitBinlog(undefined, event);
             connection.resume();
           });
           return;
         }
       }
 
-      emitBinlog(event);
+      emitBinlog(undefined, event);
     }));
   };
 
