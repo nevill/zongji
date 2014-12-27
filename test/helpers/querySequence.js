@@ -9,15 +9,17 @@ module.exports = function(connection, debug, queries, callback){
     queries = debug;
     debug = false;
   }
+  var results = [];
   var sequence = queries.map(function(queryStr, index, initQueries){
     return function(){
       debug && console.log('Query Sequence', index, queryStr);
       connection.query(queryStr, function(err, rows, fields){
         if(err) throw err;
+        results.push(rows);
         if(index < sequence.length - 1){
           sequence[index + 1]();
         }else{
-          callback();
+          callback(results);
         }
       });
     }
