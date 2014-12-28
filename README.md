@@ -5,13 +5,9 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
 ## Work In Progress
 
-Not all the data types in Mysql are supported, I will keep working on that.
-
-Implemented | Still To Do
-------------|-------------------------------------
-<ul><li>TINY<li>SHORT<li>LONG<li>**INT24**<li>**LONGLONG**<li>**FLOAT**<li>**DOUBLE**<li>**NEWDECIMAL**<li>**SET**<li>**ENUM**<li>**BIT**<li>VAR_STRING✱<li>VARCHAR✱<li>STRING✱<li>**TINY_BLOB**<li>**MEDIUM_BLOB**<li>**LONG_BLOB**<li>**BLOB**<li>**TIMESTAMP**<li>**DATE**<li>**TIME**<li>**DATETIME**<li>**YEAR**</ul> | <ul><li>~~DECIMAL~~ *Deprecated as of MySQL 5.0.3*<li>~~NULL~~ *Supported otherwise*<li>~~NEWDATE~~ *Not used*<li>GEOMETRY</ul>
-
-✱ Still needs test
+* :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
+* **Types still need to test:** `VARCHAR`, `STRING`, `BINARY`, `VARBINARY`, `TINYTEXT`, `MEDIUMTEXT`, `LONGTEXT`, `TEXT`, `CHAR`
+* **TODO** Enable filtering events by schema/table to bypass field parsing time
 
 **Notes**
 
@@ -21,7 +17,7 @@ Implemented | Still To Do
 
 ## Rewrite
 
-Since v0.2.0, The native part(which is written in C++) has been dropped. It is now a pure JS implementation based on [node-mysql](https://github.com/felixge/node-mysql), or you can say it is a patch on `node-mysql`.
+Since v0.2.0, The native part (which was written in C++) has been dropped. It is now a pure JS implementation based on [`node-mysql`](https://github.com/felixge/node-mysql).
 
 ## Prerequisite
 

@@ -201,6 +201,13 @@ defineTypeTest('blob', [
   [null, null, null, null]
 ]);
 
+defineTypeTest('geometry', [
+  'GEOMETRY',
+], [
+  ['GeomFromText("POINT(1 1)")'],
+  ['GeomFromText("POLYGON((0 0,10 0,10 10,0 10,0 0),(5 5,7 5,7 7,5 7, 5 5))")']
+]);
+
 defineTypeTest('temporal', [
   'DATE NULL',
   'TIME NULL',
