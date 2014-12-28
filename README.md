@@ -3,24 +3,35 @@ A MySQL binlog listener running on Node.js.
 
 ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
-## Work In Progress
+This package is a "pure JS" implementation based on [`node-mysql`](https://github.com/felixge/node-mysql). Since v0.2.0, The native part (which was written in C++) has been dropped.
 
-* :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
-* **TODO** Enable filtering events by schema/table to bypass field parsing time
+## Quick Start
 
-**Notes**
+```javascript
+var zongji = new ZongJi({ /* ... MySQL Connection Settings ... */ });
 
-* `NULL` value support requires a bitmap to each field. Due to current usage of Javascript's bitwise operators and their inability to handle integers greater than 32-bits, the current maximum number of fields on a table is 32.
-* While 64-bit integers in MySQL (`bigint` type) allow values in the range of 2<sup>64</sup> (± ½ × 2<sup>64</sup> for signed values), Javascript's internal storage of numbers limits values to 2<sup>53</sup>, making the allowed range of `bigint` fields only `-9007199254740992` to `9007199254740992`. Unsigned 64-bit integers must also not exceed `9007199254740992`.
-* `TRUNCATE` statement does not cause corresponding `DeleteRows` event. Use unqualified `DELETE FROM` for same effect.
+// Each change to the replication slave results in an event
+zongji.on('binlog', function(err, evt) {
+  if(err) throw err;
+  evt.dump();
+});
 
-## Rewrite
+// Binlog must be started, optionally pass in filters
+zongji.start({
+  filter: ['tablemap', 'writerows', 'updaterows', 'deleterows']
+});
+```
 
-Since v0.2.0, The native part (which was written in C++) has been dropped. It is now a pure JS implementation based on [`node-mysql`](https://github.com/felixge/node-mysql).
+For a complete implementation see [`example.js`](example.js)...
 
-## Prerequisite
+## Installation
 
-* Node.js v0.10+
+* Requires Node.js v0.10+
+
+  ```bash
+  $ npm install zongji
+  ```
+
 * Enable MySQL binlog in `my.cnf`, restart MySQL server after making the changes.
   > From [MySQL 5.6](https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html), binlog checksum is enabled by default. Zongji can work with it, but it doesn't really verify it.
 
@@ -40,6 +51,17 @@ Since v0.2.0, The native part (which was written in C++) has been dropped. It is
   ```sql
   GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'zongji'@'localhost'
   ```
+
+## Important Notes
+
+* :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
+* :poop: `NULL` value support requires a bitmap to each field. Due to current usage of Javascript's bitwise operators and their inability to handle integers greater than 32-bits, the current maximum number of fields on a table is 32.
+* :speak_no_evil: While 64-bit integers in MySQL (`BIGINT` type) allow values in the range of 2<sup>64</sup> (± ½ × 2<sup>64</sup> for signed values), Javascript's internal storage of numbers limits values to 2<sup>53</sup>, making the allowed range of `BIGINT` fields only `-9007199254740992` to `9007199254740992`. Unsigned 64-bit integers must also not exceed `9007199254740992`.
+* :point_right: `TRUNCATE` statement does not cause corresponding `DeleteRows` event. Use unqualified `DELETE FROM` for same effect.
+
+## Work In Progress
+
+* Enable filtering events by schema/table to bypass field parsing time
 
 ## Run Tests
 
