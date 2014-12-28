@@ -6,7 +6,6 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 ## Work In Progress
 
 * :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
-* **Types still need to test:** `VARCHAR`, `STRING`, `BINARY`, `VARBINARY`, `TINYTEXT`, `MEDIUMTEXT`, `LONGTEXT`, `TEXT`, `CHAR`
 * **TODO** Enable filtering events by schema/table to bypass field parsing time
 
 **Notes**

@@ -226,3 +226,25 @@ defineTypeTest('temporal', [
   [null, '"-01:27:28"', null, null, null]
 ]);
 
+defineTypeTest('string', [
+  'VARCHAR(250) NULL',
+  'CHAR(20) NULL',
+  'BINARY(3) NULL',
+  'VARBINARY(10) NULL'
+], [
+  ['"something here"', '"tiny"', '"a"', '"binary"'],
+  ['"nothing there"', '"small"', '"b"', '"test123"'],
+  [null, null, null, null]
+]);
+
+defineTypeTest('text', [
+  'TINYTEXT NULL',
+  'MEDIUMTEXT NULL',
+  'LONGTEXT NULL',
+  'TEXT NULL'
+], [
+  ['"something here"', '"tiny"', '"a"', '"binary"'],
+  ['"nothing there"', '"small"', '"b"', '"test123"'],
+  [null, null, null, null]
+]);
+
