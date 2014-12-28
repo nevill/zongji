@@ -9,7 +9,7 @@ Not all the data types in Mysql are supported, I will keep working on that.
 
 Implemented | Still To Do
 ------------|-------------------------------------
-<ul><li>TINY<li>SHORT<li>LONG<li>**INT24**<li>**LONGLONG**<li>**FLOAT**<li>**DOUBLE**<li>**NEWDECIMAL**<li>**SET**<li>VAR_STRING✱<li>VARCHAR✱<li>STRING✱<li>**TINY_BLOB**<li>**MEDIUM_BLOB**<li>**LONG_BLOB**<li>**BLOB**<li>**TIMESTAMP**<li>**DATE**<li>**TIME**<li>**DATETIME**<li>**YEAR**</ul> | <ul><li>~~DECIMAL~~ *Deprecated as of MySQL 5.0.3*<li>~~NULL~~ *Supported otherwise*<li>~~NEWDATE~~ *Not used*<li>BIT<li>ENUM<li>GEOMETRY</ul>
+<ul><li>TINY<li>SHORT<li>LONG<li>**INT24**<li>**LONGLONG**<li>**FLOAT**<li>**DOUBLE**<li>**NEWDECIMAL**<li>**SET**<li>**BIT**<li>VAR_STRING✱<li>VARCHAR✱<li>STRING✱<li>**TINY_BLOB**<li>**MEDIUM_BLOB**<li>**LONG_BLOB**<li>**BLOB**<li>**TIMESTAMP**<li>**DATE**<li>**TIME**<li>**DATETIME**<li>**YEAR**</ul> | <ul><li>~~DECIMAL~~ *Deprecated as of MySQL 5.0.3*<li>~~NULL~~ *Supported otherwise*<li>~~NEWDATE~~ *Not used*<li>ENUM<li>GEOMETRY</ul>
 
 ✱ Still needs test
 

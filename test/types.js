@@ -58,8 +58,12 @@ var defineTypeTest = function(name, fields, testRows, customTest){
       }else{
         expectedWrite.rows = selectResult.map(function(row){
           for(var field in row){
-            if(row.hasOwnProperty(field) && row[field] instanceof Buffer)
+            if(row.hasOwnProperty(field) &&
+                row[field] instanceof Buffer &&
+                name === 'blob'){
+              // Special case where blobs return as String instead of Buffer
               row[field] = row[field].toString();
+            }
           }
           return row;
         });
@@ -100,6 +104,21 @@ defineTypeTest('set', [
   ['"a,j,d"', '"a,j,d"'],
   ['"d,a,p"', '"d,a,m"'],
   ['""', '""'],
+  [null, null]
+]);
+
+defineTypeTest('bit', [
+  'BIT(64) NULL',
+  'BIT(32) NULL',
+], [
+  ["b'111'", "b'111'"],
+  ["b'100000'", "b'100000'"],
+  [
+    // 64th position
+    "b'1000000000000000000000000000000000000000000000000000000000000000'",
+    // 32nd position
+    "b'10000000000000000000000000000000'"
+  ],
   [null, null]
 ]);
 
@@ -185,5 +204,4 @@ defineTypeTest('temporal', [
   [null, '"-01:07:08"', null, null, null],
   [null, '"-01:27:28"', null, null, null]
 ]);
-
 
