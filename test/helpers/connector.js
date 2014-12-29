@@ -19,15 +19,18 @@ module.exports = function(settings, callback){
     'USE ' + escId(settings.database),
     'RESET MASTER',
   ], function(){
-    zongji = new ZongJi(settings.connection);
+    var zongji = self.zongji = new ZongJi(settings.connection);
 
-    zongji.on('binlog', function(error, event) {
-      if(error) errorLog.push(error);
-      else eventLog.push(event);
+    zongji.on('binlog', function(event) {
+      eventLog.push(event);
+    });
+
+    zongji.on('error', function(error) {
+      errorLog.push(error);
     });
 
     zongji.start({
-      filter: ['tablemap', 'writerows', 'updaterows', 'deleterows']
+      includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows']
     });
 
     callback();

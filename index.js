@@ -37,7 +37,7 @@ ZongJi.prototype._init = function() {
       useChecksum: checksumEnabled,
     };
 
-    self.binlog = generateBinlog(self.connection, options);
+    self.binlog = generateBinlog.call(self, options);
     self.ready = true;
 
     self._executeCtrlCallbacks();
@@ -85,21 +85,18 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
   }
 };
 
-var queryTemplate = 'SELECT ' +
+var tableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
   'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"';
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
-  var sql = util.format(queryTemplate,
+  var self = this;
+  var sql = util.format(tableInfoQueryTemplate,
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
-  var self = this;
-
   this.ctrlConnection.query(sql, function(err, rows) {
-    if (err) {
-      throw err;
-    }
+    if (err) throw err;
 
     self.tableMap[tableMapEvent.tableId] = {
       columnSchemas: rows,
@@ -111,44 +108,35 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   });
 };
 
+ZongJi.prototype.set = function(options){
+  this.options = options || {};
+};
+
 ZongJi.prototype.start = function(options) {
   var self = this;
-  var connection = this.connection;
-
-  var emitBinlog = function(error, binlog) {
-    self.emit('binlog', error, binlog);
-  };
-
-  if (options && options.filter) {
-    emitBinlog = function(error, binlog) {
-      if(error) {
-        self.emit('binlog', error);
-      } else if (options.filter.indexOf(binlog.getEventName()) > -1) {
-        self.emit('binlog', undefined, binlog);
-      }
-    };
-  }
+  self.set(options);
 
   var _start = function() {
-    connection._implyConnect();
-    connection._protocol._enqueue(new self.binlog(function(error, event) {
-      if(error) return emitBinlog(error);
+    self.connection._implyConnect();
+    self.connection._protocol._enqueue(new self.binlog(function(error, event){
+      if(error) return self.emit('error', error);
+      if(event === undefined) return; // Filtered out
+
       if (event.getTypeName() === 'TableMap') {
         var tableMap = self.tableMap[event.tableId];
 
         if (!tableMap) {
-          connection.pause();
+          self.connection.pause();
           self._fetchTableInfo(event, function() {
             // merge the column info with metadata
             event.updateColumnInfo();
-            emitBinlog(undefined, event);
-            connection.resume();
+            self.emit('binlog', event);
+            self.connection.resume();
           });
           return;
         }
       }
-
-      emitBinlog(undefined, event);
+      self.emit('binlog', event);
     }));
   };
 
@@ -157,6 +145,33 @@ ZongJi.prototype.start = function(options) {
   } else {
     this.ctrlCallbacks.push(_start);
   }
+};
+
+ZongJi.prototype._skipEvent = function(eventName){
+  var include = this.options.includeEvents;
+  var exclude = this.options.excludeEvents;
+  return !(
+   (include === undefined ||
+    (include instanceof Array && include.indexOf(eventName) !== -1)) &&
+   (exclude === undefined ||
+    (exclude instanceof Array && exclude.indexOf(eventName) === -1)));
+};
+
+ZongJi.prototype._skipSchema = function(database, table){
+  var include = this.options.includeSchema;
+  var exclude = this.options.excludeSchema;
+  return !(
+   (include === undefined ||
+    (database !== undefined && (database in include) &&
+     (include[database] === true ||
+      (include[database] instanceof Array &&
+       include[database].indexOf(table) !== -1)))) &&
+   (exclude === undefined ||
+      (database !== undefined && 
+       (!(database in exclude) || 
+        (exclude[database] !== true &&
+          (exclude[database] instanceof Array &&
+           exclude[database].indexOf(table) === -1))))));
 };
 
 module.exports = ZongJi;

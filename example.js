@@ -8,15 +8,12 @@ var zongji = new ZongJi({
   // debug: true
 });
 
-zongji.on('binlog', function(err, evt) {
-  if(err) throw err;
+zongji.on('binlog', function(evt) {
   evt.dump();
 });
 
 zongji.start({
-  filter: ['tablemap', 'writerows', 'updaterows', 'deleterows']
-  // TODO: filterEvents, filterSchema
-  // Perform schema filter before parsing fields for extra speed
+  includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows']
 });
 
 process.on('SIGINT', function() {
