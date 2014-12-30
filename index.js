@@ -3,16 +3,15 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var generateBinlog = require('./lib/sequence/binlog');
 
-function ZongJi(dsn) {
+function ZongJi(dsn, options) {
+  this.set(options);
+
   EventEmitter.call(this);
 
   // to send table info query
-  this.ctrlConnection = mysql.createConnection({
-    host: dsn.host,
-    user: dsn.user,
-    password: dsn.password,
-    database: 'information_schema',
-  });
+  var ctrlDsn = cloneObjectSimple(dsn);
+  ctrlDsn.database = 'information_schema';
+  this.ctrlConnection = mysql.createConnection(ctrlDsn);
   this.ctrlConnection.connect();
   this.ctrlCallbacks = [];
 
@@ -23,6 +22,16 @@ function ZongJi(dsn) {
   this.useChecksum = false;
 
   this._init();
+}
+
+var cloneObjectSimple = function(obj){
+  var out = {};
+  for(var i in obj){
+    if(obj.hasOwnProperty(i)){
+      out[i] = obj[i];
+    }
+  }
+  return out;
 }
 
 util.inherits(ZongJi, EventEmitter);
@@ -37,10 +46,27 @@ ZongJi.prototype._init = function() {
       useChecksum: checksumEnabled,
     };
 
-    self.binlog = generateBinlog.call(self, options);
-    self.ready = true;
+    if(self.options.serverId !== undefined){
+      options.serverId = self.options.serverId;
+    }
 
-    self._executeCtrlCallbacks();
+    var ready = function(){
+      self.binlog = generateBinlog.call(self, options);
+      self.ready = true;
+      self._executeCtrlCallbacks();
+    }
+
+    if(self.options.startAtEnd){
+      self._findBinlogEnd(function(result){
+        if(result){
+          options.filename = result.Log_name;
+          options.position = result.File_size;
+        }
+        ready();
+      });
+    }else{
+      ready();
+    }
   });
 };
 
@@ -74,6 +100,14 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
     } else {
       next(checksumEnabled);
     }
+  });
+};
+
+ZongJi.prototype._findBinlogEnd = function(next) {
+  var self = this;
+  self.ctrlConnection.query('SHOW BINARY LOGS', function(err, rows) {
+    if(err) throw err;
+    next(rows.length > 0 ? rows[rows.length - 1] : null);
   });
 };
 
@@ -145,6 +179,12 @@ ZongJi.prototype.start = function(options) {
   } else {
     this.ctrlCallbacks.push(_start);
   }
+};
+
+ZongJi.prototype.stop = function(){
+  var self = this;
+  self.connection.destroy();
+  self.ctrlConnection.destroy();
 };
 
 ZongJi.prototype._skipEvent = function(eventName){

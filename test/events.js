@@ -2,6 +2,7 @@ var settings = require('./settings/mysql');
 var connector =  require('./helpers/connector');
 var querySequence = require('./helpers/querySequence');
 var expectEvents = require('./helpers/expectEvents');
+var ZongJi = require('./../');
 
 var conn = process.testZongJi || {};
 
@@ -22,6 +23,16 @@ var tableMapEvent = function(tableName){
   };
 };
 
+var cloneObjectSimple = function(obj){
+  var out = {};
+  for(var i in obj){
+    if(obj.hasOwnProperty(i)){
+      out[i] = obj[i];
+    }
+  }
+  return out;
+}
+
 module.exports = {
   setUp: function(done){
     if(!conn.db) process.testZongJi = connector.call(conn, settings, done);
@@ -31,6 +42,40 @@ module.exports = {
     conn && conn.eventLog.splice(0, conn.eventLog.length);
     conn && conn.errorLog.splice(0, conn.errorLog.length);
     done();
+  },
+  testStartAtEnd: function(test){
+    var testTable = 'start_at_end_test';
+    querySequence(conn.db, [
+      'FLUSH LOGS', // Ensure Zongji perserveres through a rotation event
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+    ], function(results){
+      // Start second ZongJi instance
+      var zongji = new ZongJi(settings.connection);
+      var events = [];
+
+      zongji.on('binlog', function(event) {
+        events.push(event);
+      });
+
+      zongji.start({
+        startAtEnd: true,
+        serverId: 10, // Second instance must not use same server ID
+        includeEvents: ['tablemap', 'writerows']
+      });
+
+      querySequence(conn.db, [
+        'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+      ], function(results){
+        // Should only have 2 events since ZongJi start
+        test.equal(events.length, 2);
+        test.equal(events[1].rows[0].col, 10);
+        zongji.stop();
+        test.done();
+      });
+
+    });
   },
   testWriteUpdateDelete: function(test){
     var testTable = 'events_test';

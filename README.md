@@ -60,6 +60,7 @@ Each instance includes the following methods:
 Method Name | Arguments | Description
 ------------|-----------|------------------------
 `start`     | `options` | Start receiving replication events
+`stop`      | *None*    | Disconnect from MySQL server, stop receiving events
 `set`       | `options` | Change options after `start()`
 `on`        | `eventName`, `handler` | Add a listener to the `binlog` or `error` event. Each handler function accepts one argument.
 
@@ -67,11 +68,14 @@ Method Name | Arguments | Description
 
 Option Name | Type | Description
 ------------|------|-------------------------------
-`includeEvents` | `[string]` | Array of event names to include<br><br>**Example:** `['writerows', 'updaterows', 'deleterows']`
-`excludeEvents` | `[string]` | Array of event names to exclude<br><br>**Example:** `['rotate', 'tablemap']`
-`includeSchema` | `object` | Object describing which databases and tables to include (Only for row events). Use database names as the key and pass an array of table names or `true` (for the entire database).<br><br>**Example:** ```{ 'my_database': ['allow_table', 'another_table'], 'another_db': true }```
-`excludeSchema` | `object` | Object describing which databases and tables to exclude (Same format as `includeSchema`)<br><br>**Example:** ```{ 'other_db': ['disallowed_table'], 'ex_db': true }```
+`serverId`  | `integer` | [Unique number (1 - 2<sup>32</sup>)](http://dev.mysql.com/doc/refman/5.0/en/replication-options.html#option_mysqld_server-id) to identify this replication slave instance. Must be specified if running more than one instance of ZongJi. Must be used in `start()` method for effect.<br>**Default:** `1`
+`startAtEnd` | `boolean` | Pass `true` to only emit binlog events that occur after ZongJi's instantiation. Must be used in `start()` method for effect.<br>**Default:** `false`
+`includeEvents` | `[string]` | Array of event names to include<br>**Example:** `['writerows', 'updaterows', 'deleterows']`
+`excludeEvents` | `[string]` | Array of event names to exclude<br>**Example:** `['rotate', 'tablemap']`
+`includeSchema` | `object` | Object describing which databases and tables to include (Only for row events). Use database names as the key and pass an array of table names or `true` (for the entire database).<br>**Example:** ```{ 'my_database': ['allow_table', 'another_table'], 'another_db': true }```
+`excludeSchema` | `object` | Object describing which databases and tables to exclude (Same format as `includeSchema`)<br>**Example:** ```{ 'other_db': ['disallowed_table'], 'ex_db': true }```
 
+* By default, all events and schema are emitted.
 * `excludeSchema` and `excludeEvents` take precedence over `includeSchema` and `includeEvents`, respectively.
 
 **Supported Events:**
@@ -80,10 +84,10 @@ Event name  | Description
 ------------|---------------
 `unknown`   | Catch any other events
 `query`     | [Insert/Update/Delete Query](http://dev.mysql.com/doc/internals/en/query-event.html)
-`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html)
+`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html) (not required to be included to rotate to new files)
 `format`    | [Format Description](http://dev.mysql.com/doc/internals/en/format-description-event.html)
 `xid`       | [Transaction ID](http://dev.mysql.com/doc/internals/en/xid-event.html)
-`tablemap`  | Before any row event
+`tablemap`  | Before any row event (must be included for any other row events)
 `writerows` | Rows inserted
 `updaterows` | Rows changed
 `deleterows` | Rows deleted
