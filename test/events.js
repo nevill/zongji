@@ -65,8 +65,8 @@ module.exports = {
       test.done();
     });
   },
-  testTooManyColumns: function(test){
-    var testTable = 'many_columns';
+  testManyColumns: function(test){
+    var testTable = '33_columns';
     querySequence(conn.db, [
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (' +
@@ -104,18 +104,16 @@ module.exports = {
         'col32 TINYINT SIGNED NULL, ' +
         'col33 SMALLINT SIGNED NULL)',
       'INSERT INTO ' + conn.escId(testTable) +
-        ' (col1, col2, col3, col4, col5) VALUES ' +
-          '(2147483647, 9007199254740992, 127, 32767, 8388607), ' +
-          '(-2147483648, -9007199254740992, -128, -32768, -8388608), ' +
-          '(-2147483645, -9007199254740990, -126, -32766, -8388606), ' +
-          '(-1, -1, -1, -1, -1), ' +
-          '(123456, 100, 96, 300, 1000), ' +
-          '(-123456, -100, -96, -300, -1000)'
-    ], function(){
-      test.equal(conn.errorLog.length, 1);
-      test.equal(conn.errorLog[0].toString(),
-        'Error: too many columns (max 32) on: ' +
-          conn.dbName + '.' + testTable);
+        ' (col1, col2, col3, col4, col5, col33) VALUES ' +
+          '(2147483647, null, 127, 32767, 8388607, 12), ' +
+          '(-2147483648, -9007199254740992, -128, -32768, -8388608, 10), ' +
+          '(-2147483645, -9007199254740990, -126, -32766, -8388606, 6), ' +
+          '(-1, -1, -1, -1, null, -6), ' +
+          '(123456, 100, 96, 300, 1000, null), ' +
+          '(-123456, -100, -96, -300, -1000, null)',
+       'SELECT * FROM ' + conn.escId(testTable)
+    ], function(results){
+      test.deepEqual(conn.eventLog[1].rows, results[results.length - 1]);
       test.done();
     });
   },
