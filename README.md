@@ -74,6 +74,20 @@ Option Name | Type | Description
 
 * `excludeSchema` and `excludeEvents` take precedence over `includeSchema` and `includeEvents`, respectively.
 
+**Supported Events:**
+
+Event name  | Description
+------------|---------------
+`unknown`   | Catch any other events
+`query`     | [Insert/Update/Delete Query](http://dev.mysql.com/doc/internals/en/query-event.html)
+`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html)
+`format`    | [Format Description](http://dev.mysql.com/doc/internals/en/format-description-event.html)
+`xid`       | [Transaction ID](http://dev.mysql.com/doc/internals/en/xid-event.html)
+`tablemap`  | Before any row event
+`writerows` | Rows inserted
+`updaterows` | Rows changed
+`deleterows` | Rows deleted
+
 ## Important Notes
 
 * :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
