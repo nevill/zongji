@@ -13,7 +13,7 @@ zongji.on('binlog', function(evt) {
 });
 
 zongji.start({
-  filter: ['tablemap', 'writerows', 'updaterows', 'deleterows']
+  includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows']
 });
 
 process.on('SIGINT', function() {

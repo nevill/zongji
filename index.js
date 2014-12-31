@@ -1,20 +1,17 @@
 var mysql = require('mysql');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
+var generateBinlog = require('./lib/sequence/binlog');
 
-var capture = require('./lib/capture');
-var patch = require('./lib/patch');
+function ZongJi(dsn, options) {
+  this.set(options);
 
-function ZongJi(dsn) {
   EventEmitter.call(this);
 
   // to send table info query
-  this.ctrlConnection = mysql.createConnection({
-    host: dsn.host,
-    user: dsn.user,
-    password: dsn.password,
-    database: 'information_schema',
-  });
+  var ctrlDsn = cloneObjectSimple(dsn);
+  ctrlDsn.database = 'information_schema';
+  this.ctrlConnection = mysql.createConnection(ctrlDsn);
   this.ctrlConnection.connect();
   this.ctrlCallbacks = [];
 
@@ -25,6 +22,16 @@ function ZongJi(dsn) {
   this.useChecksum = false;
 
   this._init();
+}
+
+var cloneObjectSimple = function(obj){
+  var out = {};
+  for(var i in obj){
+    if(obj.hasOwnProperty(i)){
+      out[i] = obj[i];
+    }
+  }
+  return out;
 }
 
 util.inherits(ZongJi, EventEmitter);
@@ -39,10 +46,27 @@ ZongJi.prototype._init = function() {
       useChecksum: checksumEnabled,
     };
 
-    patch(capture(self.connection), options);
-    self.ready = true;
+    if(self.options.serverId !== undefined){
+      options.serverId = self.options.serverId;
+    }
 
-    self._executeCtrlCallbacks();
+    var ready = function(){
+      self.binlog = generateBinlog.call(self, options);
+      self.ready = true;
+      self._executeCtrlCallbacks();
+    }
+
+    if(self.options.startAtEnd){
+      self._findBinlogEnd(function(result){
+        if(result){
+          options.filename = result.Log_name;
+          options.position = result.File_size;
+        }
+        ready();
+      });
+    }else{
+      ready();
+    }
   });
 };
 
@@ -79,6 +103,14 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
   });
 };
 
+ZongJi.prototype._findBinlogEnd = function(next) {
+  var self = this;
+  self.ctrlConnection.query('SHOW BINARY LOGS', function(err, rows) {
+    if(err) throw err;
+    next(rows.length > 0 ? rows[rows.length - 1] : null);
+  });
+};
+
 ZongJi.prototype._executeCtrlCallbacks = function() {
   if (this.ctrlCallbacks.length > 0) {
     this.ctrlCallbacks.forEach(function(cb) {
@@ -87,65 +119,59 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
   }
 };
 
-var queryTemplate = 'SELECT ' +
+var tableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
   'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"';
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
-  var sql = util.format(queryTemplate,
+  var self = this;
+  var sql = util.format(tableInfoQueryTemplate,
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
-  var self = this;
-
   this.ctrlConnection.query(sql, function(err, rows) {
-    if (err) {
-      throw err;
-    }
+    if (err) throw err;
 
     self.tableMap[tableMapEvent.tableId] = {
-      columnSchemas: rows
+      columnSchemas: rows,
+      parentSchema: tableMapEvent.schemaName,
+      tableName: tableMapEvent.tableName
     };
 
     next();
   });
 };
 
+ZongJi.prototype.set = function(options){
+  this.options = options || {};
+};
+
 ZongJi.prototype.start = function(options) {
   var self = this;
-  var connection = this.connection;
-
-  var emitBinlog = function(binlog) {
-    self.emit('binlog', binlog);
-  };
-
-  if (options && options.filter) {
-    emitBinlog = function(binlog) {
-      if (options.filter.indexOf(binlog.getEventName()) > -1) {
-        self.emit('binlog', binlog);
-      }
-    };
-  }
+  self.set(options);
 
   var _start = function() {
-    connection.dumpBinlog(function(err, binlog) {
-      if (binlog.getTypeName() === 'TableMap') {
-        var tableMap = self.tableMap[binlog.tableId];
+    self.connection._implyConnect();
+    self.connection._protocol._enqueue(new self.binlog(function(error, event){
+      if(error) return self.emit('error', error);
+      if(event === undefined) return; // Filtered out
+
+      if (event.getTypeName() === 'TableMap') {
+        var tableMap = self.tableMap[event.tableId];
 
         if (!tableMap) {
-          connection.pause();
-          self._fetchTableInfo(binlog, function() {
+          self.connection.pause();
+          self._fetchTableInfo(event, function() {
             // merge the column info with metadata
-            binlog.updateColumnInfo();
-            emitBinlog(binlog);
-            connection.resume();
+            event.updateColumnInfo();
+            self.emit('binlog', event);
+            self.connection.resume();
           });
           return;
         }
       }
-
-      emitBinlog(binlog);
-    });
+      self.emit('binlog', event);
+    }));
   };
 
   if (this.ready) {
@@ -153,6 +179,39 @@ ZongJi.prototype.start = function(options) {
   } else {
     this.ctrlCallbacks.push(_start);
   }
+};
+
+ZongJi.prototype.stop = function(){
+  var self = this;
+  self.connection.destroy();
+  self.ctrlConnection.destroy();
+};
+
+ZongJi.prototype._skipEvent = function(eventName){
+  var include = this.options.includeEvents;
+  var exclude = this.options.excludeEvents;
+  return !(
+   (include === undefined ||
+    (include instanceof Array && include.indexOf(eventName) !== -1)) &&
+   (exclude === undefined ||
+    (exclude instanceof Array && exclude.indexOf(eventName) === -1)));
+};
+
+ZongJi.prototype._skipSchema = function(database, table){
+  var include = this.options.includeSchema;
+  var exclude = this.options.excludeSchema;
+  return !(
+   (include === undefined ||
+    (database !== undefined && (database in include) &&
+     (include[database] === true ||
+      (include[database] instanceof Array &&
+       include[database].indexOf(table) !== -1)))) &&
+   (exclude === undefined ||
+      (database !== undefined && 
+       (!(database in exclude) || 
+        (exclude[database] !== true &&
+          (exclude[database] instanceof Array &&
+           exclude[database].indexOf(table) === -1))))));
 };
 
 module.exports = ZongJi;
