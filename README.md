@@ -92,6 +92,15 @@ Event name  | Description
 `updaterows` | Rows changed
 `deleterows` | Rows deleted
 
+**Event Methods**
+
+Neither method requires any arguments.
+
+Name   | Description
+-------|---------------------------
+`dump` | Log a description of the event to the console
+`getEventName` | Return the name of the event
+
 ## Important Notes
 
 * :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
