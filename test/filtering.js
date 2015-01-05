@@ -1,9 +1,6 @@
 var settings = require('./settings/mysql');
 var connector =  require('./helpers/connector');
-
-var codeMap = require('../lib/code_map');
-var initBinlogHeader = require('../lib/packet/binlog_header');
-var rowEvents = require('../lib/rows_event');
+var querySequence = require('./helpers/querySequence');
 
 var conn = process.testZongJi || {};
 
@@ -13,9 +10,11 @@ module.exports = {
     else done();
   },
   tearDown: function(done){
+    conn && conn.eventLog.splice(0, conn.eventLog.length);
+    conn && conn.errorLog.splice(0, conn.errorLog.length);
     done();
   },
-  testFilter: function(test){
+  unitTestFilter: function(test){
     var origOptions = conn.zongji.options;
 
     conn.zongji.set({
@@ -65,7 +64,32 @@ module.exports = {
     // Restore original emitter
     delete conn.zongji.emit;
     conn.zongji.set(origOptions);
-    
+
     test.done();
+  },
+  integrationTestFilter: function(test){
+    // Set includeSchema to not include anything, recieve no row events
+    // Ensure that filters are applied
+    var origOptions = conn.zongji.options;
+    var testTable = 'filter_test';
+    var includeSchema = {};
+    // Uncomment the following line to manually test this test:
+    // includeSchema[settings.database] = [ testTable ];
+    conn.zongji.set({
+      includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
+      includeSchema: includeSchema
+    });
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+      'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
+      'DELETE FROM ' + conn.escId(testTable)
+    ], function(){
+      conn.zongji.set(origOptions);
+      test.equal(conn.eventLog.length, 0);
+      test.equal(conn.errorLog.length, 0);
+      test.done();
+    });
   }
 }
