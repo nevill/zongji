@@ -18,7 +18,7 @@ module.exports = function(settings, callback){
     'CREATE DATABASE ' + escId(settings.database),
     'USE ' + escId(settings.database),
     'RESET MASTER',
-  ], function(){
+  ], function(results){
     var zongji = self.zongji = new ZongJi(settings.connection);
 
     zongji.on('binlog', function(event) {

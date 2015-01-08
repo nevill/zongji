@@ -8,7 +8,7 @@ var conn = process.testZongJi || {};
 
 var checkTableMatches = function(tableName){
   return function(test, event){
-    var tableDetails = event.tableMap[event.tableId]; 
+    var tableDetails = event.tableMap[event.tableId];
     test.strictEqual(tableDetails.parentSchema, settings.database);
     test.strictEqual(tableDetails.tableName, tableName);
   };
@@ -65,15 +65,18 @@ module.exports = {
         includeEvents: ['tablemap', 'writerows']
       });
 
-      querySequence(conn.db, [
-        'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-      ], function(results){
-        // Should only have 2 events since ZongJi start
-        test.equal(events.length, 2);
-        test.equal(events[1].rows[0].col, 10);
-        zongji.stop();
-        test.done();
-      });
+      // Give enough time to initialize
+      setTimeout(function(){
+        querySequence(conn.db, [
+          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+        ], function(results){
+          // Should only have 2 events since ZongJi start
+          test.equal(events.length, 2);
+          test.equal(events[1].rows[0].col, 10);
+          zongji.stop();
+          test.done();
+        });
+      }, 200);
 
     });
   },

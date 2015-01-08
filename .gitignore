@@ -24,3 +24,5 @@ npm-install-stamp
 *.swo
 *.swp
 ben.js
+.vagrant
+Vagrantfile

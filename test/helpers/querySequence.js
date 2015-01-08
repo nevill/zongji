@@ -19,7 +19,9 @@ module.exports = function(connection, debug, queries, callback){
         if(index < sequence.length - 1){
           sequence[index + 1]();
         }else{
-          callback(results);
+          setTimeout(function(){
+            callback(results);
+          }, 200);
         }
       });
     }
