@@ -124,6 +124,7 @@ I learnt many things from following resources while making ZongJi.
 * http://dev.mysql.com/doc/internals/en/replication-protocol.html
 * http://www.cs.wichita.edu/~chang/lecture/cs742/program/how-mysql-c-api.html
 * https://github.com/jeremycole/mysql_binlog (Ruby implemenation of MySQL binlog parser)
+* http://dev.mysql.com/doc/internals/en/date-and-time-data-type-representation.html
 
 ## License
 MIT

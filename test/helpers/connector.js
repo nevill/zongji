@@ -18,7 +18,16 @@ module.exports = function(settings, callback){
     'CREATE DATABASE ' + escId(settings.database),
     'USE ' + escId(settings.database),
     'RESET MASTER',
+    'SELECT VERSION() AS version'
   ], function(results){
+    
+    self.mysqlVersion = results[results.length - 1][0].version
+      .split('-')[0]
+      .split('.')
+      .map(function(part){
+        return parseInt(part, 10);
+      });
+
     var zongji = self.zongji = new ZongJi(settings.connection);
 
     zongji.on('binlog', function(event) {

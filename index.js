@@ -38,36 +38,54 @@ util.inherits(ZongJi, EventEmitter);
 
 ZongJi.prototype._init = function() {
   var self = this;
+  var binlogOptions = {
+    tableMap: self.tableMap,
+  };
 
-  this._isChecksumEnabled(function(checksumEnabled) {
-    self.useChecksum = checksumEnabled;
-    var options = {
-      tableMap: self.tableMap,
-      useChecksum: checksumEnabled,
-    };
-
-    if(self.options.serverId !== undefined){
-      options.serverId = self.options.serverId;
-    }
-
-    var ready = function(){
-      self.binlog = generateBinlog.call(self, options);
-      self.ready = true;
-      self._executeCtrlCallbacks();
-    }
-
-    if(self.options.startAtEnd){
-      self._findBinlogEnd(function(result){
-        if(result){
-          options.filename = result.Log_name;
-          options.position = result.File_size;
+  var asyncMethods = [
+    {
+      name: '_isChecksumEnabled',
+      callback: function(checksumEnabled) {
+        self.useChecksum = checksumEnabled;
+        binlogOptions.useChecksum = checksumEnabled
+      }
+    },
+    {
+      name: '_findBinlogEnd',
+      callback: function(result){
+        if(result && self.options.startAtEnd){
+          binlogOptions.filename = result.Log_name;
+          binlogOptions.position = result.File_size;
         }
-        ready();
-      });
-    }else{
-      ready();
+      }
     }
-  });
+  ];
+
+  var methodIndex = 0;
+  var nextMethod = function(){
+    var method = asyncMethods[methodIndex];
+    self[method.name](function(/* args */){
+      method.callback.apply(this, arguments);
+      methodIndex++;
+      if(methodIndex < asyncMethods.length){
+        nextMethod();
+      }else{
+        ready();
+      }
+    });
+  };
+  nextMethod();
+
+  var ready = function(){
+    // Run asynchronously from _init(), as serverId option set in start()
+    if(self.options.serverId !== undefined){
+      binlogOptions.serverId = self.options.serverId;
+    }
+
+    self.binlog = generateBinlog.call(self, binlogOptions);
+    self.ready = true;
+    self._executeCtrlCallbacks();
+  };
 };
 
 ZongJi.prototype._isChecksumEnabled = function(next) {
