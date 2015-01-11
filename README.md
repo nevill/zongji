@@ -5,6 +5,8 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
 This package is a "pure JS" implementation based on [`node-mysql`](https://github.com/felixge/node-mysql). Since v0.2.0, The native part (which was written in C++) has been dropped.
 
+This package has been tested with MySQL server 5.5.40 and 5.6.19. All MySQL server versions >= 5.1.15 are supported.
+
 ## Quick Start
 
 ```javascript
