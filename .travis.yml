@@ -2,4 +2,11 @@ language: node_js
 node_js:
   - "0.10"
 before_script:
-  - mysql -v -e 'set sql_log_bin = 1;'
+  - sudo apt-get install libaio1 libaio-dev
+  - ./test/travis/install.sh
+script:
+  - ./test/travis/runner.sh
+after_script:
+  - kill $(cat mysql-5.1.73-linux-x86_64-glibc23/mysql.pid)
+  - kill $(cat mysql-5.5.41-linux2.6-x86_64/mysql.pid)
+  - kill $(cat mysql-5.6.22-linux-glibc2.5-x86_64/mysql.pid)

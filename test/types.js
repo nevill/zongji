@@ -7,12 +7,19 @@ var conn = process.testZongJi || {};
 
 module.exports = {
   setUp: function(done){
-    if(!conn.db) process.testZongJi = connector.call(conn, settings, done);
-    else done();
+    if(!conn.db){
+      process.testZongJi = connector.call(conn, settings, done);
+    }else{
+      conn.incCount();
+      done();
+    }
   },
   tearDown: function(done){
-    conn.eventLog.splice(0, conn.eventLog.length);
-    conn.errorLog.splice(0, conn.errorLog.length);
+    if(conn){
+      conn.eventLog.splice(0, conn.eventLog.length);
+      conn.errorLog.splice(0, conn.errorLog.length);
+      conn.closeIfInactive(1000);
+    }
     done();
   }
 };

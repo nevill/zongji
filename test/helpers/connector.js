@@ -11,6 +11,7 @@ module.exports = function(settings, callback){
   var errorLog = self.errorLog = [];
 
   self.dbName = settings.database;
+  self.testCount = 0;
 
   // Perform initialization queries sequentially
   querySequence(db, [
@@ -44,6 +45,21 @@ module.exports = function(settings, callback){
 
     callback();
   });
+
+  // Extra methods on connector object
+  self.incCount = function(){
+    self.testCount++;
+  };
+
+  self.closeIfInactive = function(interval){
+    var startCount = self.testCount;
+    setTimeout(function(){
+      if(startCount === self.testCount){
+        self.zongji.stop();
+        self.db.destroy();
+      }
+    }, interval);
+  };
 
   return self;
 }

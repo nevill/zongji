@@ -1,3 +1,5 @@
+var callbackDelay = process.env.QUERY_DELAY || 800;
+
 // Execute a sequence of queries on a node-mysql database connection
 // @param {object} connection - Node-Mysql Connection, Connected
 // @param {boolean} debug - Print queries as they execute (optional)
@@ -21,7 +23,7 @@ module.exports = function(connection, debug, queries, callback){
         }else{
           setTimeout(function(){
             callback(results);
-          }, 200);
+          }, callbackDelay);
         }
       });
     }
