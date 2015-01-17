@@ -93,10 +93,13 @@ module.exports = {
       'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
       'DELETE FROM ' + conn.escId(testTable)
     ], function(){
-      conn.zongji.set(origOptions);
-      test.equal(conn.eventLog.length, 0);
-      test.equal(conn.errorLog.length, 0);
-      test.done();
+      // Give 1 second to see if any events are emitted, they should not be!
+      setTimeout(function(){
+        conn.zongji.set(origOptions);
+        test.equal(conn.eventLog.length, 0);
+        test.equal(conn.errorLog.length, 0);
+        test.done();
+      }, 1000);
     });
   }
 }

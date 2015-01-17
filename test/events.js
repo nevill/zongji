@@ -78,10 +78,13 @@ module.exports = {
           'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
         ], function(results){
           // Should only have 2 events since ZongJi start
-          test.equal(events.length, 2);
-          test.equal(events[1].rows[0].col, 10);
-          zongji.stop();
-          test.done();
+          expectEvents(test, events, [
+            { /* do not bother testing anything on first event */ },
+            { rows: [ { col: 10 } ] }
+          ], function(){
+            zongji.stop();
+            test.done();
+          });
         });
       }, 200);
 
@@ -115,9 +118,10 @@ module.exports = {
           _checkTableMap: checkTableMatches(testTable),
           rows: [ { col: 15 } ]
         }
-      ]);
-      test.equal(conn.errorLog.length, 0);
-      test.done();
+      ], function(){
+        test.equal(conn.errorLog.length, 0);
+        test.done();
+      });
     });
   },
   testManyColumns: function(test){
@@ -168,8 +172,10 @@ module.exports = {
           '(-123456, -100, -96, -300, -1000, null)',
        'SELECT * FROM ' + conn.escId(testTable)
     ], function(results){
-      test.deepEqual(conn.eventLog[1].rows, results[results.length - 1]);
-      test.done();
+      expectEvents(test, conn.eventLog, [
+        { /* do not bother testing anything on first event */ },
+        { rows: results[results.length - 1] }
+      ], test.done);
     });
   },
 };

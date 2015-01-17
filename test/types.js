@@ -91,16 +91,16 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
             schemaName: settings.database
           },
           expectedWrite
-        ]);
+        ], function(){
+          test.equal(conn.errorLog.length, 0);
+          conn.errorLog.length &&
+            console.log('Type Test Error: ', name, conn.errorLog);
+          if(conn.errorLog.length){
+            throw conn.errorLog[0];
+          }
 
-        test.equal(conn.errorLog.length, 0);
-        conn.errorLog.length &&
-          console.log('Type Test Error: ', name, conn.errorLog);
-        if(conn.errorLog.length){
-          throw conn.errorLog[0];
-        }
-
-        test.done();
+          test.done();
+        });
       });
     }else{
       // Skip running test when version doesn't meet minVersion
