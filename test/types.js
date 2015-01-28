@@ -54,8 +54,10 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
       querySequence(conn.db, [
         'DROP TABLE IF EXISTS ' + conn.escId(testTable),
         'CREATE TABLE ' + conn.escId(testTable) + ' (' + fieldText + ')',
+        'SET @@session.time_zone = "+00:00"',
         'INSERT INTO ' + conn.escId(testTable) +
           ' (' + insertColumns + ') VALUES ' + insertRows,
+        'SET @@session.time_zone = "SYSTEM"',
         'SELECT * FROM ' + conn.escId(testTable)
       ], function(results){
         var selectResult = results[results.length - 1];
