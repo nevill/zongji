@@ -40,9 +40,8 @@ For a complete implementation see [`example.js`](example.js)...
   # binlog config
   server-id        = 1
   log_bin          = /usr/local/var/log/mysql/mysql-bin.log
-  binlog_do_db     = employees   # optional
-  expire_logs_days = 10          # optional
-  max_binlog_size  = 100M        # optional
+  expire_logs_days = 10            # optional
+  max_binlog_size  = 100M          # optional
 
   # Very important if you want to receive write, update and delete row events
   binlog_format    = row
