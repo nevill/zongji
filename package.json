@@ -21,6 +21,9 @@
     "binlog"
   ],
   "author": "Nevill <nevill.dutt@gmail.com>",
+  "contributors": [
+    "numtel <ben@latenightsketches.com> (https://github.com/numtel)"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/nevill/zongji/issues"
