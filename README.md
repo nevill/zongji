@@ -39,7 +39,7 @@ For a complete implementation see [`example.js`](example.js)...
   ```
   # binlog config
   server-id        = 1
-  log_bin          = /usr/local/var/log/mysql/mysql-bin.log
+  log_bin          = /var/log/mysql/mysql-bin.log
   expire_logs_days = 10            # optional
   max_binlog_size  = 100M          # optional
 
