@@ -202,8 +202,14 @@ ZongJi.prototype.start = function(options) {
 
 ZongJi.prototype.stop = function(){
   var self = this;
+  // Binary log connection does not end with destroy()
   self.connection.destroy();
-  self.ctrlConnection.destroy();
+  self.ctrlConnection.query(
+    'KILL ' + self.connection.threadId,
+    function(error, reuslts){
+      self.ctrlConnection.destroy();
+    }
+  );
 };
 
 ZongJi.prototype._skipEvent = function(eventName){
