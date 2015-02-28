@@ -337,3 +337,11 @@ defineTypeTest('text', [
   [null, null, null, null]
 ]);
 
+defineTypeTest('datetime_then_decimal', [
+  'DATETIME(3) NULL',
+  'DECIMAL(30, 10) NULL'
+], [
+  ['"1000-01-01 00:00:00.123"', 10.10],
+  ['"9999-12-31 23:59:59.001"', -123.45],
+  ['"2014-12-27 01:07:08.053"', 12345.123]
+], '5.6.4');
