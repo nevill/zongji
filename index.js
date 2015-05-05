@@ -9,13 +9,19 @@ function ZongJi(dsn, options) {
   EventEmitter.call(this);
 
   // to send table info query
+  this.dsn = dsn;
+
   var ctrlDsn = cloneObjectSimple(dsn);
   ctrlDsn.database = 'information_schema';
-  this.ctrlConnection = mysql.createConnection(ctrlDsn);
-  this.ctrlConnection.connect();
+  this.ctrlDsn = ctrlDsn;
+
+//  this.ctrlConnection = mysql.createConnection(ctrlDsn);
+//  this.ctrlConnection.connect();
+  this._handleDisconnect();
+
   this.ctrlCallbacks = [];
 
-  this.connection = mysql.createConnection(dsn);
+//  this.connection = mysql.createConnection(dsn);
 
   this.tableMap = {};
   this.ready = false;
@@ -35,6 +41,34 @@ var cloneObjectSimple = function(obj){
 }
 
 util.inherits(ZongJi, EventEmitter);
+
+ZongJi.prototype._handleDisconnect = function() {
+  var self = this;
+  self.ctrlConnection = mysql.createConnection(self.ctrlDsn);
+
+  self.ctrlConnection.connect(function(err) {
+    if(err) {
+      setTimeout(function() {
+          self._handleDisconnect();
+      }.bind(this), 2000);
+    } else {
+      self.connection = mysql.createConnection(self.dsn);
+      if (self.ready && self.ctrlConnection.state==='authenticated' && self.connection.state==='disconnected') {
+       console.log("\n** Reconnecting **\n\n\n\n\n\n\n\n\n\n");
+       self._init();
+       self.start(self.options);
+      }
+    }
+  });
+
+  self.ctrlConnection.on('error', function(err) {
+    if(err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNREFUSED') {
+      self._handleDisconnect();
+    } else {
+      throw err;
+    }
+  });
+};
 
 ZongJi.prototype._init = function() {
   var self = this;
