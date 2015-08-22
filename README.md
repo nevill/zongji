@@ -49,7 +49,7 @@ For a complete implementation see [`example.js`](example.js)...
 * Create an account with replication privileges, e.g. given privileges to account `zongji` (or any account that you use to read binary logs)
 
   ```sql
-  GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'zongji'@'localhost'
+  GRANT REPLICATION SLAVE, REPLICATION CLIENT, SELECT ON *.* TO 'zongji'@'localhost'
   ```
 
 ## ZongJi Class
