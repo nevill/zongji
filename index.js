@@ -24,7 +24,7 @@ function ZongJi(dsn, options) {
   this._init();
 }
 
-var cloneObjectSimple = function(obj){
+function cloneObjectSimple (obj){
   var out = {};
   for(var i in obj){
     if(obj.hasOwnProperty(i)){
