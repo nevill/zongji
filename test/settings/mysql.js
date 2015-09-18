@@ -4,8 +4,8 @@ module.exports = {
   connection: {
     host     : 'localhost',
     user     : 'root',
-    password : 'numtel'
-    // debug: true
+    password : 'numtel',
+    debug : false // setting debug to true will output all packets
   },
   database: 'zongji_test'
 };
