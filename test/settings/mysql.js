@@ -8,7 +8,7 @@ module.exports = {
     // debug: true
   },
   database: 'zongji_test'
-}
+};
 
 if(process.env.TRAVIS){
   // Travis CI database root user does not have a password

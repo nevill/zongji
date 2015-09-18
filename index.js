@@ -32,7 +32,7 @@ var cloneObjectSimple = function(obj){
     }
   }
   return out;
-}
+};
 
 util.inherits(ZongJi, EventEmitter);
 

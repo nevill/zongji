@@ -84,7 +84,7 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
             }
             return row;
           });
-        };
+        }
 
         expectEvents(test, conn.eventLog, [
           {

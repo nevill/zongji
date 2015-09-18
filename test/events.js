@@ -31,7 +31,7 @@ var cloneObjectSimple = function(obj){
     }
   }
   return out;
-}
+};
 
 module.exports = {
   setUp: function(done){
