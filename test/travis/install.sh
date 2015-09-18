@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # MySQL is going to be run under this user
 sudo rm -rf /var/ramfs/mysql/
 sudo mkdir /var/ramfs/mysql/
