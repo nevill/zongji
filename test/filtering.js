@@ -75,7 +75,7 @@ module.exports = {
     test.done();
   },
   integrationTestFilter: function(test){
-    // Set includeSchema to not include anything, recieve no row events
+    // Set includeSchema to not include anything, receive no row events
     // Ensure that filters are applied
     var origOptions = conn.zongji.options;
     var testTable = 'filter_test';

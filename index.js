@@ -206,7 +206,7 @@ ZongJi.prototype.stop = function(){
   self.connection.destroy();
   self.ctrlConnection.query(
     'KILL ' + self.connection.threadId,
-    function(error, reuslts){
+    function(error, results){
       self.ctrlConnection.destroy();
     }
   );
