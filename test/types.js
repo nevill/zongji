@@ -143,7 +143,7 @@ defineTypeTest('set', [
 
 defineTypeTest('bit', [
   'BIT(64) NULL',
-  'BIT(32) NULL',
+  'BIT(32) NULL'
 ], [
   ["b'111'", "b'111'"],
   ["b'100000'", "b'100000'"],
@@ -236,7 +236,7 @@ defineTypeTest('blob', [
 ]);
 
 defineTypeTest('geometry', [
-  'GEOMETRY',
+  'GEOMETRY'
 ], [
   ['GeomFromText("POINT(1 1)")'],
   ['GeomFromText("POLYGON((0 0,10 0,10 10,0 10,0 0),(5 5,7 5,7 7,5 7, 5 5))")']
@@ -256,7 +256,7 @@ defineTypeTest('time_no_fraction', [
   ['"01:07:08"'],
   ['"01:27:28"'],
   ['"-01:07:08"'],
-  ['"-01:27:28"'],
+  ['"-01:27:28"']
 ]);
 
 defineTypeTest('time_fraction', [
@@ -270,7 +270,7 @@ defineTypeTest('time_fraction', [
   ['"00:07:00"',  '"00:07:00.3"',  '"00:07:00.654"',  '"00:07:00.010203"'],
   ['"20:00:00"',  '"20:00:00.4"',  '"20:00:00.090"',  '"20:00:00.987654"'],
   ['"19:00:00"',  '"19:00:00.5"',  '"19:00:00.999"',  '"19:00:00.000001"'],
-  ['"04:00:00"',  '"04:00:00.0"',  '"04:00:00.01"',  '"04:00:00.1"'],
+  ['"04:00:00"',  '"04:00:00.0"',  '"04:00:00.01"',  '"04:00:00.1"']
 ], '5.6.4');
 
 defineTypeTest('datetime_no_fraction', [
@@ -298,11 +298,11 @@ defineTypeTest('datetime_fraction', [
 ], '5.6.4');
 
 defineTypeTest('timestamp_fractional', [
-  'TIMESTAMP(3) NULL',
+  'TIMESTAMP(3) NULL'
 ], [
   ['"1970-01-01 00:00:01.123"'],
   ['"2038-01-18 03:14:07.900"'],
-  ['"2014-12-27 01:07:08.001"'],
+  ['"2014-12-27 01:07:08.001"']
 ], '5.6.4');
 
 defineTypeTest('temporal_other', [

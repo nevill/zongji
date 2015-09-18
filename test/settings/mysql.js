@@ -4,7 +4,7 @@ module.exports = {
   connection: {
     host     : 'localhost',
     user     : 'root',
-    password : 'numtel',
+    password : 'numtel'
     // debug: true
   },
   database: 'zongji_test'

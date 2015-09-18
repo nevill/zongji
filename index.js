@@ -32,14 +32,14 @@ var cloneObjectSimple = function(obj){
     }
   }
   return out;
-};
+}
 
 util.inherits(ZongJi, EventEmitter);
 
 ZongJi.prototype._init = function() {
   var self = this;
   var binlogOptions = {
-    tableMap: self.tableMap,
+    tableMap: self.tableMap
   };
 
   var asyncMethods = [
