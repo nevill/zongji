@@ -1,7 +1,7 @@
-var mysql = require('mysql'),
-    util = require('util'),
-    EventEmitter = require('events').EventEmitter,
-    generateBinlog = require('./lib/sequence/binlog');
+var mysql = require('mysql');
+var util = require('util');
+var EventEmitter = require('events').EventEmitter;
+var generateBinlog = require('./lib/sequence/binlog');
 
 function ZongJi(dsn, options) {
   this.set(options);
@@ -20,6 +20,8 @@ function ZongJi(dsn, options) {
   this.tableMap = {};
   this.ready = false;
   this.useChecksum = false;
+
+  this._init();
 }
 
 function cloneObjectSimple (obj){
@@ -34,7 +36,7 @@ function cloneObjectSimple (obj){
 
 util.inherits(ZongJi, EventEmitter);
 
-ZongJi.prototype.init = function(cb) {
+ZongJi.prototype._init = function() {
   var self = this;
   var binlogOptions = {
     tableMap: self.tableMap
@@ -83,7 +85,6 @@ ZongJi.prototype.init = function(cb) {
     self.binlog = generateBinlog.call(self, binlogOptions);
     self.ready = true;
     self._executeCtrlCallbacks();
-    cb && cb(null);
   };
 };
 
@@ -167,20 +168,8 @@ ZongJi.prototype.set = function(options){
   this.options = options || {};
 };
 
-ZongJi.prototype.start = function(options, cb) {
+ZongJi.prototype.start = function(options) {
   var self = this;
-
-  // Before we start, make sure that ZongJi was initialized
-  if (!self.ready) {
-    return self.init(function(err) {
-      if (err) {
-        return cb && cb(err);
-      }
-
-      self.start(options, cb);
-    });
-  }
-
   self.set(options);
 
   var _start = function() {
@@ -215,10 +204,8 @@ ZongJi.prototype.start = function(options, cb) {
   }
 };
 
-ZongJi.prototype.stop = function() {
+ZongJi.prototype.stop = function(){
   var self = this;
-
-  self.ready = false;
   // Binary log connection does not end with destroy()
   self.connection.destroy();
   self.ctrlConnection.query(
