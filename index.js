@@ -89,17 +89,21 @@ ZongJi.prototype._init = function() {
 };
 
 ZongJi.prototype._isChecksumEnabled = function(next) {
+  var self = this;
   var sql = 'select @@GLOBAL.binlog_checksum as checksum';
-  var ctrlConnection = this.ctrlConnection;
-  var connection = this.connection;
+  var ctrlConnection = self.ctrlConnection;
+  var connection = self.connection;
 
   ctrlConnection.query(sql, function(err, rows) {
     if (err) {
       if(err.toString().match(/ER_UNKNOWN_SYSTEM_VARIABLE/)){
         // MySQL < 5.6.2 does not support @@GLOBAL.binlog_checksum
         return next(false);
+      } else {
+        // Any other errors should be emitted
+        self.emit('error', err);
+        return;
       }
-      throw err;
     }
 
     var checksumEnabled = true;
@@ -111,7 +115,9 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
     if (checksumEnabled) {
       connection.query(setChecksumSql, function(err) {
         if (err) {
-          throw err;
+          // Errors should be emitted
+          self.emit('error', err);
+          return;
         }
         next(checksumEnabled);
       });
@@ -124,7 +130,11 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
 ZongJi.prototype._findBinlogEnd = function(next) {
   var self = this;
   self.ctrlConnection.query('SHOW BINARY LOGS', function(err, rows) {
-    if(err) throw err;
+    if (err) {
+      // Errors should be emitted
+      self.emit('error', err);
+      return;
+    }
     next(rows.length > 0 ? rows[rows.length - 1] : null);
   });
 };
@@ -148,7 +158,11 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
   this.ctrlConnection.query(sql, function(err, rows) {
-    if (err) throw err;
+    if (err) {
+      // Errors should be emitted
+      self.emit('error', err);
+      return;
+    }
 
     self.tableMap[tableMapEvent.tableId] = {
       columnSchemas: rows,
