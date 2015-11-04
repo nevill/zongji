@@ -182,8 +182,13 @@ ZongJi.prototype.start = function(options) {
           self.connection.pause();
           self._fetchTableInfo(event, function() {
             // merge the column info with metadata
-            event.updateColumnInfo();
-            self.emit('binlog', event);
+            try {
+                event.updateColumnInfo();
+                self.emit('binlog', event);
+            }
+            catch (err) {
+                self.emit('error', err);
+            }
             self.connection.resume();
           });
           return;
