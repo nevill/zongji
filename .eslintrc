@@ -1,0 +1,14 @@
+{
+  "env": {
+    "node": true
+  },
+  "extends": "eslint:recommended",
+  "rules": {
+    "quotes": [1, "single", "avoid-escape"],
+    "comma-dangle": [1, "always-multiline"],
+    "eol-last": [2],
+    "no-console": 0,
+    "no-trailing-spaces": [2, { "skipBlankLines": true }],
+    "semi": [2, "always"]
+  }
+}

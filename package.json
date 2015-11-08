@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "nodeunit --reporter=minimal test"
+    "test": "nodeunit --reporter=minimal test",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -28,6 +29,7 @@
   },
   "homepage": "https://github.com/nevill/zongji",
   "devDependencies": {
+    "eslint": "~1.9.0",
     "nodeunit": "~0.9.1"
   },
   "dependencies": {
