@@ -4,6 +4,8 @@ var EventEmitter = require('events').EventEmitter;
 var generateBinlog = require('./lib/sequence/binlog');
 
 function ZongJi(dsn, options) {
+  var self = this;
+
   this.set(options);
 
   EventEmitter.call(this);
@@ -12,6 +14,15 @@ function ZongJi(dsn, options) {
   var ctrlDsn = cloneObjectSimple(dsn);
   ctrlDsn.database = 'information_schema';
   this.ctrlConnection = mysql.createConnection(ctrlDsn);
+
+  this.ctrlConnection.on('error', function (error) {
+    self.emit('error', error);
+  });
+
+  this.ctrlConnection.on('unhandledError', function (error) {
+    self.emit('error', error);
+  });
+
   this.ctrlConnection.connect();
   this.ctrlCallbacks = [];
 
