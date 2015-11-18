@@ -158,25 +158,28 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
   }
 };
 
-var tableInfoQueryTemplate =
-  '   SELECT c.COLUMN_NAME,' +
-  '          COLLATION_NAME,' +
-  '          CHARACTER_SET_NAME,' +
-  '          COLUMN_COMMENT,' +
-  '          COLUMN_TYPE,' +
-  '          IS_NULLABLE,' +
-  '          t.CONSTRAINT_TYPE' +
-  '     FROM information_schema.columns c' +
-  'LEFT JOIN information_schema.KEY_COLUMN_USAGE k' +
-  '       ON k.TABLE_NAME = c.TABLE_NAME' +
-  '      AND k.TABLE_SCHEMA = c.TABLE_SCHEMA' +
-  '      AND k.COLUMN_NAME = c.COLUMN_NAME' +
-  'LEFT JOIN information_schema.TABLE_CONSTRAINTS t' +
-  '       ON t.TABLE_NAME = c.TABLE_NAME' +
-  '      AND t.CONSTRAINT_SCHEMA = c.TABLE_SCHEMA' +
-  '      AND t.CONSTRAINT_NAME = k.CONSTRAINT_NAME' +
-  '    WHERE c.TABLE_SCHEMA = "%s"' +
-  '      AND c.TABLE_NAME = "%s";'.replace(/\s\s+/g, ' ');
+var tableInfoQueryTemplate = [
+  '   SELECT c.COLUMN_NAME,',
+  '          COLLATION_NAME,',
+  '          CHARACTER_SET_NAME,',
+  '          COLUMN_COMMENT,',
+  '          COLUMN_TYPE,',
+  '          IS_NULLABLE,',
+  '          t.CONSTRAINT_TYPE,',
+  '          k.ORDINAL_POSITION,',
+  '          k.CONSTRAINT_NAME',
+  '     FROM information_schema.columns c',
+  'LEFT JOIN information_schema.KEY_COLUMN_USAGE k',
+  '       ON k.TABLE_NAME = c.TABLE_NAME',
+  '      AND k.TABLE_SCHEMA = c.TABLE_SCHEMA',
+  '      AND k.COLUMN_NAME = c.COLUMN_NAME',
+  'LEFT JOIN information_schema.TABLE_CONSTRAINTS t',
+  '       ON t.TABLE_NAME = c.TABLE_NAME',
+  '      AND t.CONSTRAINT_SCHEMA = c.TABLE_SCHEMA',
+  '      AND t.CONSTRAINT_NAME = k.CONSTRAINT_NAME',
+  '    WHERE c.TABLE_SCHEMA = "%s"',
+  '      AND c.TABLE_NAME = "%s"'
+].join(' ').replace(/\s{2,}/g, ' ');
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var self = this;
