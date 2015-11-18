@@ -170,7 +170,7 @@ var tableInfoQueryTemplate =
   'LEFT JOIN information_schema.KEY_COLUMN_USAGE k' +
   '       ON k.TABLE_NAME = c.TABLE_NAME' +
   '      AND k.TABLE_SCHEMA = c.TABLE_SCHEMA' +
-  '      AND c.COLUMN_NAME = k.COLUMN_NAME' +
+  '      AND k.COLUMN_NAME = c.COLUMN_NAME' +
   'LEFT JOIN information_schema.TABLE_CONSTRAINTS t' +
   '       ON t.TABLE_NAME = c.TABLE_NAME' +
   '      AND t.CONSTRAINT_SCHEMA = c.TABLE_SCHEMA' +
