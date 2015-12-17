@@ -190,6 +190,15 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
     if (err) {
       // Errors should be emitted
       self.emit('error', err);
+      // This is a fatal error, no additional binlog events will be processed as next() will never be called
+      return;
+    }
+
+    if (rows.length === 0) {
+      self.emit('error',
+          new Error('Insufficient permissions to access: ' + tableMapEvent.schemaName + '.' + tableMapEvent.tableName)
+      );
+      // This is a fatal error, no additional binlog events will be processed as next() will never be called
       return;
     }
 
@@ -275,8 +284,8 @@ ZongJi.prototype._skipSchema = function(database, table){
       (include[database] instanceof Array &&
        include[database].indexOf(table) !== -1)))) &&
    (exclude === undefined ||
-      (database !== undefined && 
-       (!(database in exclude) || 
+      (database !== undefined &&
+       (!(database in exclude) ||
         (exclude[database] !== true &&
           (exclude[database] instanceof Array &&
            exclude[database].indexOf(table) === -1))))));
