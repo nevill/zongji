@@ -5,6 +5,7 @@ module.exports = {
     host     : 'localhost',
     user     : 'root',
     password : 'numtel',
+    serverId : 111,
     // debug: true
   },
   database: 'zongji_test'
@@ -13,6 +14,4 @@ module.exports = {
 if(process.env.TRAVIS){
   // Travis CI database root user does not have a password
   module.exports.connection.password = '';
-  // Port to use is passed as variable
-  module.exports.connection.port = process.env.TEST_MYSQL_PORT;
 }

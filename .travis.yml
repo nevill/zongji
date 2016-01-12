@@ -1,12 +1,27 @@
 language: node_js
+sudo: required
+dist: trusty
 node_js:
   - "0.10"
 before_script:
-  - sudo apt-get install libaio1 libaio-dev
-  - ./test/travis/install.sh
+  # Add Official MySQL Repository
+  # http://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/#repo-qg-apt-repo-manual-setup
+ 
+  # Download MySQL public key
+  - wget "http://pgp.mit.edu/pks/lookup?op=get&search=0x8C718D3B5072E1F5" -qO- | sed -n 14,403p > mysql_pubkey.asc
+  - sudo apt-key add mysql_pubkey.asc
+
+  # Create sources file
+  - echo "deb http://repo.mysql.com/apt/ubuntu/ trusty mysql-5.6" | sudo tee -a /etc/apt/sources.list
+
+  # Install MySQL server + client
+  - sudo apt-get update
+  - sudo apt-get install -qq mysql-server mysql-client
+
+  # Enable binary log
+  - sudo sed -i 's^\[mysqld\]^[mysql]\nserver_id = 1\nbinlog_format=row\nlog_bin=/var/log/mysql/mysql-bin.log^1' /etc/mysql/my.cnf
+
+  # Restart MySQL server
+  - sudo service mysql restart
 script:
-  - ./test/travis/runner.sh
-after_script:
-  - kill $(cat mysql-5.1.73-linux-x86_64-glibc23/mysql.pid)
-  - kill $(cat mysql-5.5.41-linux2.6-x86_64/mysql.pid)
-  - kill $(cat mysql-5.6.22-linux-glibc2.5-x86_64/mysql.pid)
+  - npm test
