@@ -11,12 +11,16 @@ function ZongJi(dsn, options) {
   // to send table info query
   var ctrlDsn = cloneObjectSimple(dsn);
   ctrlDsn.database = 'information_schema';
-  this.ctrlConnection = mysql.createConnection(ctrlDsn);
-  this.ctrlConnection.connect();
+  this.dsn = dsn;
+  this.ctrlDsn = ctrlDsn;
+  this.interval = null;
+  this.interval2 = null;
+  this.binlogName = null;
+  this.nextPosition = 0;
+  this.listenerAdded = false;
+  this._handleDisconnect();
+
   this.ctrlCallbacks = [];
-
-  this.connection = mysql.createConnection(dsn);
-
   this.tableMap = {};
   this.ready = false;
   this.useChecksum = false;
@@ -35,6 +39,66 @@ var cloneObjectSimple = function(obj){
 }
 
 util.inherits(ZongJi, EventEmitter);
+
+ZongJi.prototype._handleDisconnect = function() {
+  var self = this;
+  self.ctrlConnection = mysql.createConnection(self.ctrlDsn);
+
+  self.ctrlConnection.connect(function(err) {
+    if(err) {
+      setTimeout(function() {
+          self._handleDisconnect();
+      }, 5000);
+    } else {
+      if (self.connection && self.connection.state && self.connection.state !== 'disconnected' && self.disconnect()) {
+        self.connection.state = 'disconnected';
+      }
+      self.connection = mysql.createConnection(self.dsn);
+      if (self.ready && self.ctrlConnection.state==='authenticated' && self.connection.state==='disconnected') {
+      //Reconnected
+       self._init();
+       self.start(self.options);
+      }
+      //polling the server to see the connection is active, if error, then the handleDisconnect will kick into action
+      self.interval = setInterval(function(){
+        self.ctrlConnection.query("SELECT 1 AS ctrlConnection", function(err, rows) {
+          if (err) throw err;
+        });
+      }, 30000);
+    }
+  });
+
+  self.ctrlConnection.on('error', function(err) {
+    clearInterval(self.interval);
+    if(err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+      self._handleDisconnect();
+    } else {
+      throw err;
+    }
+  });
+};
+
+ZongJi.prototype._handleConnectionDisconnect = function(){
+  var self = this;
+  if (self.interval2 === null) {
+    var triggerTimeout = (Date.now()/1000|0)+600;
+    self.interval2 = setInterval(function(){
+      //If no activity, Reconnect after every 10mins, to make sure that the connection is alive
+      if (triggerTimeout < Date.now()/1000|0) {
+        self.disconnect()
+      }
+    }, 10000);
+  }
+  if (self.listenerAdded === false) {
+    self.listenerAdded = true;
+    self.on('binlog', function(evt){
+      if (evt.getEventName() !== 'tablemap') {
+        //An event occured, increment the 10min timeout value for reconnection
+        triggerTimeout = (Date.now()/1000|0)+600;
+      }
+    });
+  }
+};
 
 ZongJi.prototype._init = function() {
   var self = this;
@@ -170,10 +234,29 @@ ZongJi.prototype.start = function(options) {
 
   var _start = function() {
     self.connection._implyConnect();
+    self._handleConnectionDisconnect();
     self.connection._protocol._enqueue(new self.binlog(function(error, event){
       if(error) return self.emit('error', error);
       // Do not emit events that have been filtered out
       if(event === undefined || event._filtered === true) return;
+
+      //Manage Server Restarts
+      //log gets rotated when mysqld restarts, each new binlogfile starts with position 0
+      // if currently watching binlogName != new binlogName, then it shows server restarted, this is required, because if the script is running and mysqld restarts, the whole events from last file is returned, we need to skip the events that we already processed, we use nextPosition for this purpose.
+      if (event.getTypeName() === 'Rotate') {
+        if (self.binlogName !== event.binlogName) {
+          self.binlogName = event.binlogName;
+          self.nextPosition = 0;
+        }
+      }
+
+      // Skip the processed events
+      if (self.nextPosition >= event.nextPosition) {
+        return;
+      }
+      else {
+        self.nextPosition = event.nextPosition;
+      }
 
       if (event.getTypeName() === 'TableMap') {
         var tableMap = self.tableMap[event.tableId];
@@ -206,15 +289,39 @@ ZongJi.prototype.stop = function(){
   self.connection.destroy();
   self.ctrlConnection.query(
     'KILL ' + self.connection.threadId,
-    function(error, reuslts){
+    function(error, rows){
       self.ctrlConnection.destroy();
     }
   );
 };
 
+ZongJi.prototype.disconnect = function(){
+  var self = this;
+  // Binary log connection does not end with destroy()
+  self.connection.destroy();
+  self.ctrlConnection.query(
+    'KILL '+self.connection.threadId,
+    function(err, rows){
+      //KILLED MySQL self.connection.threadId
+      self.reconnect();
+    }
+  );
+};
+
+ZongJi.prototype.reconnect = function(){
+  var self =  this;
+  clearInterval(self.interval2);
+  self.interval2 = null;
+  self.connection = mysql.createConnection(self.dsn);
+  self.start(self.options);
+};
+
 ZongJi.prototype._skipEvent = function(eventName){
   var include = this.options.includeEvents;
   var exclude = this.options.excludeEvents;
+  if (Array.isArray(include) && include.indexOf('rotate') === -1) {
+    include.push('rotate');
+  }
   return !(
    (include === undefined ||
     (include instanceof Array && include.indexOf(eventName) !== -1)) &&
