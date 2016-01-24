@@ -351,12 +351,23 @@ defineTypeTest('json', [
   'JSON NULL'
 ], [
 //   ['\'{"key1": "value1", "key2": "válue2", "keybá3": 34}\''],
-  ['\'{"twobytelen": "' + strRepeat('a', 256) + '"}\''],
-  ['\'{"twobytelen": "' + strRepeat('a', 257) + '"}\''],
-  ['\'{"twobytelen": "' + strRepeat('a', 258) + '"}\''],
-  ['\'{"twobytelen": "' + strRepeat('a', 16383) + '"}\''],
-  ['\'{"threebytelen": "' + strRepeat('a', 16388) + '"}\''],
+  ['\'{"key1": { "key2": "válue2", "keybá3": 34 } }\''],
+//   ['\'{ "key2": "válue2", "keybá3": 34 }\''],
+//   ['\'{"twobytelen": "' + strRepeat('a', 256) + '"}\''],
+//   ['\'{"twobytelen": "' + strRepeat('a', 257) + '"}\''],
+//   ['\'{"twobytelen": "' + strRepeat('a', 258) + '"}\''],
+//   ['\'{"twobytelen": "' + strRepeat('a', 16383) + '"}\''],
+//   ['\'{"threebytelen": "' + strRepeat('a', 16388) + '"}\''],
 //   ['\'{"key1": -10, "keyb": 34}\''],
 //   ['\'{"literaltest1": null, "literal2": true, "literal3": false}\''],
 //   ['\'["a", "b", 1]\'']
-], '5.7.8');
+], function(test, event){
+  // JSON from MySQL client has different whitespace than JSON.stringify
+  // Therefore, parse and perform deep equality
+  event.rows.forEach(function(row, index) {
+    console.log('this', this, row);
+    var expected = JSON.parse(this[index].col0);
+    var actual = JSON.parse(row.col0);
+    test.deepEqual(expected, actual);
+  }.bind(this));
+}, '5.7.8');
