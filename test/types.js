@@ -379,6 +379,16 @@ defineTypeTest('json', [
   ['\'null\''],
   ['\'true\''],
   ['\'false\''],
+  ['\'10\''],
+  ['\'10.123\''],
+  ['\'{"doubleval": "-123.38439", "another": 1283192.0004}\''],
+  ['\'2147483647\''],
+  ['\'-2147483647\''], // Int32
+  ['\'2147483648\''], // Int64
+  ['\'4294967295\''], // Int64
+  ['\'-4294967295\''], // Int64
+  ['\'9007199254740992\''], // UInt64
+  ['\'-9007199254740992\''], // Int64
 ], function(test, event){
   // JSON from MySQL client has different whitespace than JSON.stringify
   // Therefore, parse and perform deep equality
