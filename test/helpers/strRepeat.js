@@ -1,10 +1,10 @@
-// String repeater from http://stackoverflow.com/a/5450113
 module.exports = function (pattern, count) {
   if (count < 1) return '';
   var result = '';
-  while (count > 1) {
-    if (count & 1) result += pattern;
-    count >>= 1, pattern += pattern;
+  var pos = 0;
+  while (pos < count) {
+    result += pattern.replace(/##/g, pos);
+    pos++;
   }
-  return result + pattern;
+  return result;
 } 

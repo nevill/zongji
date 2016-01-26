@@ -359,8 +359,11 @@ defineTypeTest('datetime_then_decimal', [
 defineTypeTest('json', [
   'JSON NULL'
 ], [
+  // Small Object with Unicode key
   ['\'{"key1": "value1", "key2": "válue2", "keybá3": 34}\''],
+  // Small Object with Unicode in value and key
   ['\'{"key1": { "key2": "válue2", "keybá3": 34 } }\''],
+  // Small Object with nested object
   ['\'{"key1": { "key2": { "key2": "válue2", "keybá3": 34 }, "keybá3": 34 } }\''],
   ['\'{ "key2": "válue2", "keybá3": 34 }\''],
   ['\'{"twobytelen": "' + strRepeat('a', 256) + '"}\''],
@@ -389,12 +392,34 @@ defineTypeTest('json', [
   ['\'-4294967295\''], // Int64
   ['\'9007199254740992\''], // UInt64
   ['\'-9007199254740992\''], // Int64
+  ['\'3e2\''],
+  ['\'-3e-2\''],
+  // Large Object
+  ['\'{' + strRepeat('"key##": "value##", ', 2839) + '"keyLast": 34}\''],
+  // Large Object with nested small objects
+  ['\'{' + strRepeat('"key##": {"subkey": "value##"}, ', 2000) + '"keyLast": 34}\''],
+  // Large Object with nested small arrays
+  ['\'{' + strRepeat('"key##": ["a", ##], ', 3000) + '"keyLast": 34}\''],
 ], function(test, event){
   // JSON from MySQL client has different whitespace than JSON.stringify
   // Therefore, parse and perform deep equality
   event.rows.forEach(function(row, index) {
+    // test.deepEqual does not work when comparison objects exceed 65536 bytes
+    // Perform alternative assertions for these large cases
     var expected = JSON.parse(this[index].col0);
     var actual = JSON.parse(row.col0);
-    test.deepEqual(expected, actual);
+    if(this[index].col0.length > 65536) {
+      // XXX: Large cases must are all currently large objects
+      var expectedKeys = Object.keys(expected);
+      var actualKeys = Object.keys(actual);
+      test.strictEqual(expectedKeys.length, actualKeys.length);
+      test.deepEqual(expectedKeys, actualKeys);
+      for(var i = 0; i < expectedKeys.length; i++) {
+        test.deepEqual(expected[expectedKeys[i]], actual[expectedKeys[i]]);
+      }
+    } else {
+      // Comparison objects are smaller than 65536 bytes
+      test.deepEqual(expected, actual);
+    }
   }.bind(this));
 }, '5.7.8');
