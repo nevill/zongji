@@ -359,33 +359,44 @@ defineTypeTest('datetime_then_decimal', [
 defineTypeTest('json', [
   'JSON NULL'
 ], [
-  // Small Object with Unicode key
-  ['\'{"key1": "value1", "key2": "válue2", "keybá3": 34}\''],
-  // Small Object with Unicode in value and key
-  ['\'{"key1": { "key2": "válue2", "keybá3": 34 } }\''],
+  // Small Object
+  ['\'{"key1": "value1", "key2": "value2", "key3": 34}\''],
   // Small Object with nested object
-  ['\'{"key1": { "key2": { "key2": "válue2", "keybá3": 34 }, "keybá3": 34 } }\''],
+  ['\'{"key1": { "key2": "value2", "key3": 34 } }\''],
+  // Small Object with double nested object
+  ['\'{"key1": { "key2": { "key2": "value2", "key3": 34 }, "key3": 34 } }\''],
+  // Small Object with unicode character in key and value
   ['\'{ "key2": "válue2", "keybá3": 34 }\''],
+  // Large Object
+  ['\'{' + strRepeat('"key##": "value##", ', 2839) + '"keyLast": 34}\''],
+  // Large Object with nested small objects
+  ['\'{' + strRepeat('"key##": {"subkey": "value##"}, ', 2000) + '"keyLast": 34}\''],
+  // Large Object with nested small arrays
+  ['\'{' + strRepeat('"key##": ["a", ##], ', 3000) + '"keyLast": 34}\''],
+  // Small array
+  ['\'["a", "b", 1]\''],
+  // Small array with nested array
+  ['\'["a", [2, "b"], 1]\''],
+  // Small array with double nested array
+  ['\'["a", [2, ["b", 4, 54]], 1]\''],
+  // Large Array
+  ['\'[' + strRepeat('"value##", ', 6000) + '34]\''],
+  // Large Array with nested small objects
+  ['\'[' + strRepeat('{"key##": "value##"}, ', 6000) + '34]\''],
+  // Large Array with nested small arrays
+  ['\'[' + strRepeat('[##, "value##"], ', 6000) + '34]\''],
+  // Strings of various lengths
+  ['\'"hello"\''],
   ['\'{"twobytelen": "' + strRepeat('a', 256) + '"}\''],
   ['\'{"twobytelen": "' + strRepeat('a', 257) + '"}\''],
   ['\'{"twobytelen": "' + strRepeat('a', 258) + '"}\''],
   ['\'{"twobytelen": "' + strRepeat('a', 7383) + '"}\''],
   ['\'{"twobytelen": "' + strRepeat('a', 16383) + '"}\''],
   ['\'{"threebytelen": "' + strRepeat('a', 16388) + '"}\''],
+  // Integers
   ['\'{"key1": -10, "keyb": 34}\''],
-  ['\'{"literaltest1": null, "literal2": true, "literal3": false}\''],
-  ['\'{"literaltest1": null, "stringafter": "heyos", "number": 35}\''],
-  ['\'["a", "b", 1]\''],
-  ['\'["a", [2, "b"], 1]\''],
-  ['\'["a", [2, ["b", 4, 54]], 1]\''],
-  ['\'"hello"\''],
-  ['\'null\''],
-  ['\'true\''],
-  ['\'false\''],
   ['\'10\''],
-  ['\'10.123\''],
-  ['\'{"doubleval": "-123.38439", "another": 1283192.0004}\''],
-  ['\'2147483647\''],
+  ['\'2147483647\''], // Int32
   ['\'-2147483647\''], // Int32
   ['\'2147483648\''], // Int64
   ['\'4294967295\''], // Int64
@@ -394,12 +405,15 @@ defineTypeTest('json', [
   ['\'-9007199254740992\''], // Int64
   ['\'3e2\''],
   ['\'-3e-2\''],
-  // Large Object
-  ['\'{' + strRepeat('"key##": "value##", ', 2839) + '"keyLast": 34}\''],
-  // Large Object with nested small objects
-  ['\'{' + strRepeat('"key##": {"subkey": "value##"}, ', 2000) + '"keyLast": 34}\''],
-  // Large Object with nested small arrays
-  ['\'{' + strRepeat('"key##": ["a", ##], ', 3000) + '"keyLast": 34}\''],
+  // Doubles
+  ['\'10.123\''],
+  ['\'{"doubleval": "-123.38439", "another": 1283192.0004}\''],
+  // Literals
+  ['\'{"literaltest1": null, "literal2": true, "literal3": false}\''],
+  ['\'{"literaltest1": null, "stringafter": "heyos", "number": 35}\''],
+  ['\'null\''],
+  ['\'true\''],
+  ['\'false\''],
 ], function(test, event){
   // JSON from MySQL client has different whitespace than JSON.stringify
   // Therefore, parse and perform deep equality
@@ -409,13 +423,20 @@ defineTypeTest('json', [
     var expected = JSON.parse(this[index].col0);
     var actual = JSON.parse(row.col0);
     if(this[index].col0.length > 65536) {
-      // XXX: Large cases must are all currently large objects
-      var expectedKeys = Object.keys(expected);
-      var actualKeys = Object.keys(actual);
-      test.strictEqual(expectedKeys.length, actualKeys.length);
-      test.deepEqual(expectedKeys, actualKeys);
-      for(var i = 0; i < expectedKeys.length; i++) {
-        test.deepEqual(expected[expectedKeys[i]], actual[expectedKeys[i]]);
+      // Large cases are either array or object
+      if(expected instanceof Array) {
+        test.strictEqual(expected.length, actual.length);
+        for(var i = 0; i < expected.length; i++) {
+          test.deepEqual(expected[i], actual[i]);
+        }
+      } else {
+        var expectedKeys = Object.keys(expected);
+        var actualKeys = Object.keys(actual);
+        test.strictEqual(expectedKeys.length, actualKeys.length);
+        test.deepEqual(expectedKeys, actualKeys);
+        for(var i = 0; i < expectedKeys.length; i++) {
+          test.deepEqual(expected[expectedKeys[i]], actual[expectedKeys[i]]);
+        }
       }
     } else {
       // Comparison objects are smaller than 65536 bytes
