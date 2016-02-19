@@ -159,14 +159,14 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
 };
 
 var tableInfoQueryTemplate = [
-  '   SELECT c.COLUMN_NAME,',
+  '   SELECT c.ORDINAL_POSITION,' +
+  '          c.COLUMN_NAME,',
   '          COLLATION_NAME,',
   '          CHARACTER_SET_NAME,',
   '          COLUMN_COMMENT,',
   '          COLUMN_TYPE,',
   '          IS_NULLABLE,',
   '          t.CONSTRAINT_TYPE,',
-  '          k.ORDINAL_POSITION,',
   '          k.CONSTRAINT_NAME',
   '     FROM information_schema.columns c',
   'LEFT JOIN information_schema.KEY_COLUMN_USAGE k',
@@ -187,6 +187,12 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
   this.ctrlConnection.query(sql, function(err, rows) {
+    var columns = [],
+        column,
+        rowLen,
+        idx,
+        x;
+
     if (err) {
       // Errors should be emitted
       self.emit('error', err);
@@ -194,7 +200,9 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
       return;
     }
 
-    if (rows.length === 0) {
+    rowLen = rows.length;
+
+    if (rowLen === 0) {
       self.emit('error',
           new Error('Insufficient permissions to access: ' + tableMapEvent.schemaName + '.' + tableMapEvent.tableName)
       );
@@ -202,8 +210,32 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
       return;
     }
 
+    for (x = 0; x < rowLen; x++) {
+      column = rows[x];
+      idx = column.ORDINAL_POSITION - 1;
+
+      column.UNIQUE = column.CONSTRAINT_TYPE === 'UNIQUE';
+      column.PK = column.CONSTRAINT_TYPE === 'PRIMARY KEY';
+
+      if (x === 0 || columns[idx] === undefined) {
+        columns.push(column);
+      } else {
+        columns[idx].CONSTRAINT_TYPES || (columns[idx].CONSTRAINT_TYPES = [columns[idx].CONSTRAINT_TYPE]);
+        columns[idx].CONSTRAINT_NAMES || (columns[idx].CONSTRAINT_NAMES = [columns[idx].CONSTRAINT_NAME]);
+
+        columns[idx].CONSTRAINT_TYPES.push(column.CONSTRAINT_TYPE);
+        columns[idx].CONSTRAINT_NAMES.push(column.CONSTRAINT_NAME);
+
+        if (column.UNIQUE) {
+          columns[idx].UNIQUE = true;
+        } else if (column.PK) {
+          columns[idx].PK = true;
+        }
+      }
+    }
+
     self.tableMap[tableMapEvent.tableId] = {
-      columnSchemas: rows,
+      columnSchemas: columns,
       parentSchema: tableMapEvent.schemaName,
       tableName: tableMapEvent.tableName
     };
