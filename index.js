@@ -69,7 +69,14 @@ ZongJi.prototype._init = function() {
           binlogOptions.position = result.File_size;
         }
       }
-    }
+    },
+    {
+      name: '_getUtcOffset',
+      callback: function(utcOffset) {
+        self.utcOffset = utcOffset * 1000;
+        require('./lib/common').setUtcOffset(self.utcOffset);
+      }
+    },
   ];
 
   var methodIndex = 0;
@@ -97,6 +104,26 @@ ZongJi.prototype._init = function() {
     self.ready = true;
     self._executeCtrlCallbacks();
   };
+};
+
+ZongJi.prototype._getUtcOffset = function(next) {
+  var self = this;
+  var sql = 'SELECT TIMESTAMPDIFF(SECOND, NOW(), UTC_TIMESTAMP) AS offset;';
+  var ctrlConnection = self.ctrlConnection;
+
+  ctrlConnection.query(sql, function(err, rows) {
+    var nodeOffsetInSeconds = new Date().getTimezoneOffset() * 60,
+        mysqlOffsetInSeconds;
+
+    if (err) {
+      self.emit('error', err);
+      return next(false);
+    }
+
+    mysqlOffsetInSeconds = rows[0].offset;
+
+    next(mysqlOffsetInSeconds - nodeOffsetInSeconds);
+  });
 };
 
 ZongJi.prototype._isChecksumEnabled = function(next) {
