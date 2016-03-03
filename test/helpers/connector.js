@@ -62,4 +62,4 @@ module.exports = function(settings, callback){
   };
 
   return self;
-}
+};

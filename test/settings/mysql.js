@@ -5,10 +5,10 @@ module.exports = {
     host     : 'localhost',
     user     : 'root',
     password : 'numtel',
-    // debug: true
+    debug : false // setting debug to true will output all packets
   },
   database: 'zongji_test'
-}
+};
 
 if(process.env.TRAVIS){
   // Port to use is passed as variable

@@ -4,7 +4,7 @@ var ZongJi = require('./');
 var zongji = new ZongJi({
   host     : 'localhost',
   user     : 'zongji',
-  password : 'zongji',
+  password : 'zongji'
   // debug: true
 });
 
