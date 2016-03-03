@@ -4,6 +4,8 @@ var EventEmitter = require('events').EventEmitter;
 var generateBinlog = require('./lib/sequence/binlog');
 
 function ZongJi(dsn, options) {
+  var self = this;
+
   this.set(options);
 
   EventEmitter.call(this);
@@ -12,6 +14,15 @@ function ZongJi(dsn, options) {
   var ctrlDsn = cloneObjectSimple(dsn);
   ctrlDsn.database = 'information_schema';
   this.ctrlConnection = mysql.createConnection(ctrlDsn);
+
+  this.ctrlConnection.on('error', function (error) {
+    self.emit('error', error);
+  });
+
+  this.ctrlConnection.on('unhandledError', function (error) {
+    self.emit('error', error);
+  });
+
   this.ctrlConnection.connect();
   this.ctrlCallbacks = [];
 
@@ -58,7 +69,14 @@ ZongJi.prototype._init = function() {
           binlogOptions.position = result.File_size;
         }
       }
-    }
+    },
+    {
+      name: '_getUtcOffset',
+      callback: function(utcOffset) {
+        self.utcOffset = utcOffset * 1000;
+        require('./lib/common').setUtcOffset(self.utcOffset);
+      }
+    },
   ];
 
   var methodIndex = 0;
@@ -86,6 +104,26 @@ ZongJi.prototype._init = function() {
     self.ready = true;
     self._executeCtrlCallbacks();
   };
+};
+
+ZongJi.prototype._getUtcOffset = function(next) {
+  var self = this;
+  var sql = 'SELECT TIMESTAMPDIFF(SECOND, NOW(), UTC_TIMESTAMP) AS offset;';
+  var ctrlConnection = self.ctrlConnection;
+
+  ctrlConnection.query(sql, function(err, rows) {
+    var nodeOffsetInSeconds = new Date().getTimezoneOffset() * 60,
+        mysqlOffsetInSeconds;
+
+    if (err) {
+      self.emit('error', err);
+      return next(false);
+    }
+
+    mysqlOffsetInSeconds = rows[0].offset;
+
+    next(mysqlOffsetInSeconds - nodeOffsetInSeconds);
+  });
 };
 
 ZongJi.prototype._isChecksumEnabled = function(next) {
@@ -147,10 +185,28 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
   }
 };
 
-var tableInfoQueryTemplate = 'SELECT ' +
-  'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
-  'COLUMN_COMMENT, COLUMN_TYPE ' +
-  'FROM columns ' + 'WHERE table_schema="%s" AND table_name="%s"';
+var tableInfoQueryTemplate = [
+  '   SELECT c.ORDINAL_POSITION,' +
+  '          c.COLUMN_NAME,',
+  '          COLLATION_NAME,',
+  '          CHARACTER_SET_NAME,',
+  '          COLUMN_COMMENT,',
+  '          COLUMN_TYPE,',
+  '          IS_NULLABLE,',
+  '          t.CONSTRAINT_TYPE,',
+  '          k.CONSTRAINT_NAME',
+  '     FROM information_schema.columns c',
+  'LEFT JOIN information_schema.KEY_COLUMN_USAGE k',
+  '       ON k.TABLE_NAME = c.TABLE_NAME',
+  '      AND k.TABLE_SCHEMA = c.TABLE_SCHEMA',
+  '      AND k.COLUMN_NAME = c.COLUMN_NAME',
+  'LEFT JOIN information_schema.TABLE_CONSTRAINTS t',
+  '       ON t.TABLE_NAME = c.TABLE_NAME',
+  '      AND t.CONSTRAINT_SCHEMA = c.TABLE_SCHEMA',
+  '      AND t.CONSTRAINT_NAME = k.CONSTRAINT_NAME',
+  '    WHERE c.TABLE_SCHEMA = "%s"',
+  '      AND c.TABLE_NAME = "%s"'
+].join(' ').replace(/\s{2,}/g, ' ');
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var self = this;
@@ -158,14 +214,55 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
   this.ctrlConnection.query(sql, function(err, rows) {
+    var columns = [],
+        column,
+        rowLen,
+        idx,
+        x;
+
     if (err) {
       // Errors should be emitted
       self.emit('error', err);
+      // This is a fatal error, no additional binlog events will be processed as next() will never be called
       return;
     }
 
+    rowLen = rows.length;
+
+    if (rowLen === 0) {
+      self.emit('error',
+          new Error('Insufficient permissions to access: ' + tableMapEvent.schemaName + '.' + tableMapEvent.tableName)
+      );
+      // This is a fatal error, no additional binlog events will be processed as next() will never be called
+      return;
+    }
+
+    for (x = 0; x < rowLen; x++) {
+      column = rows[x];
+      idx = column.ORDINAL_POSITION - 1;
+
+      column.UNIQUE = column.CONSTRAINT_TYPE === 'UNIQUE';
+      column.PK = column.CONSTRAINT_TYPE === 'PRIMARY KEY';
+
+      if (x === 0 || columns[idx] === undefined) {
+        columns.push(column);
+      } else {
+        columns[idx].CONSTRAINT_TYPES || (columns[idx].CONSTRAINT_TYPES = [columns[idx].CONSTRAINT_TYPE]);
+        columns[idx].CONSTRAINT_NAMES || (columns[idx].CONSTRAINT_NAMES = [columns[idx].CONSTRAINT_NAME]);
+
+        columns[idx].CONSTRAINT_TYPES.push(column.CONSTRAINT_TYPE);
+        columns[idx].CONSTRAINT_NAMES.push(column.CONSTRAINT_NAME);
+
+        if (column.UNIQUE) {
+          columns[idx].UNIQUE = true;
+        } else if (column.PK) {
+          columns[idx].PK = true;
+        }
+      }
+    }
+
     self.tableMap[tableMapEvent.tableId] = {
-      columnSchemas: rows,
+      columnSchemas: columns,
       parentSchema: tableMapEvent.schemaName,
       tableName: tableMapEvent.tableName
     };
@@ -246,8 +343,8 @@ ZongJi.prototype._skipSchema = function(database, table){
       (include[database] instanceof Array &&
        include[database].indexOf(table) !== -1)))) &&
    (exclude === undefined ||
-      (database !== undefined && 
-       (!(database in exclude) || 
+      (database !== undefined &&
+       (!(database in exclude) ||
         (exclude[database] !== true &&
           (exclude[database] instanceof Array &&
            exclude[database].indexOf(table) === -1))))));
