@@ -81,7 +81,7 @@ module.exports = {
           expectEvents(test, events, [
             { /* do not bother testing anything on first event */ },
             { rows: [ { col: 10 } ] }
-          ], function(){
+          ], 1, function(){
             zongji.stop();
             test.done();
           });
@@ -118,7 +118,7 @@ module.exports = {
           _checkTableMap: checkTableMatches(testTable),
           rows: [ { col: 15 } ]
         }
-      ], function(){
+      ], 1, function(){
         test.equal(conn.errorLog.length, 0);
         test.done();
       });
@@ -175,7 +175,7 @@ module.exports = {
       expectEvents(test, conn.eventLog, [
         { /* do not bother testing anything on first event */ },
         { rows: results[results.length - 1] }
-      ], test.done);
+      ], 1, test.done);
     });
   },
 };

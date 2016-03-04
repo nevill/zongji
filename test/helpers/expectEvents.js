@@ -8,18 +8,19 @@ var MAX_WAIT = 3000;
 // @param {function} expected.$._[custom] - Apply custom tests for this event
 //                                          function(test, event){}
 // @param {any} expected.$.[key] - Deep match any other values
+// @param {number} multiplier - Number of times to expect expected events
 // @param {function} callback - Call when done, no arguments (optional)
 // @param waitIndex - Do not specify, used internally
-var expectEvents = module.exports = function(test, events, expected, callback, waitIndex){
-  if(events.length < expected.length && !(waitIndex > 10)){
+function expectEvents(test, events, expected, multiplier, callback, waitIndex){
+  if(events.length < (expected.length * multiplier) && !(waitIndex > 10)){
     // Wait for events to appear
     setTimeout(function(){
-      expectEvents(test, events, expected, callback, (waitIndex || 0) + 1);
+      expectEvents(test, events, expected, multiplier, callback, (waitIndex || 0) + 1);
     }, MAX_WAIT / 10);
   }else{
-    test.strictEqual(events.length, expected.length);
+    test.strictEqual(events.length, expected.length * multiplier);
     events.forEach(function(event, index){
-      var exp = expected[index];
+      var exp = expected[index % expected.length];
       for(var i in exp){
         if(exp.hasOwnProperty(i)){
           if(i === '_type'){
@@ -35,3 +36,5 @@ var expectEvents = module.exports = function(test, events, expected, callback, w
     if(typeof callback === 'function') callback();
   }
 };
+
+module.exports = expectEvents;
