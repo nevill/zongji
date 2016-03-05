@@ -233,18 +233,7 @@ defineTypeTest('blob', [
   ['"something here"', '"tiny"', '"medium"', '"long"'],
   ['"nothing there"', '"small"', '"average"', '"huge"'],
   [null, null, null, null]
-], function(test, event) {
-  // XXX: Blobs return as String from binlog instead of Buffer
-  event.rows.forEach(function(row, index) {
-    var expected = this[index];
-    for(var field in expected) {
-      if(expected.hasOwnProperty(field) && expected[field] instanceof Buffer) {
-        expected[field] = expected[field].toString();
-      }
-    }
-    test.deepEqual(expected, row);
-  }.bind(this));
-});
+]);
 
 defineTypeTest('geometry', [
   'GEOMETRY',
@@ -340,10 +329,10 @@ defineTypeTest('string', [
 defineTypeTest('text', [
   'TINYTEXT NULL',
   'MEDIUMTEXT NULL',
-  'LONGTEXT NULL',
+  'LONGTEXT CHARACTER SET utf8 NULL',
   'TEXT NULL'
 ], [
-  ['"something here"', '"tiny"', '"a"', '"binary"'],
+  ['"something here"', '"tiny"', '"á"', '"binary"'],
   ['"nothing there"', '"small"', '"b"', '"test123"'],
   [null, null, null, null]
 ]);

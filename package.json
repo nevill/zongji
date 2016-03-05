@@ -33,6 +33,7 @@
     "nodeunit": "~0.9.0"
   },
   "dependencies": {
+    "iconv-lite": "^0.4.13",
     "mysql": "~2.5.5"
   }
 }
