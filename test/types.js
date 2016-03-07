@@ -2,6 +2,7 @@ var settings = require('./settings/mysql');
 var connector =  require('./helpers/connector');
 var querySequence = require('./helpers/querySequence');
 var expectEvents = require('./helpers/expectEvents');
+var strRepeat = require('./helpers/strRepeat');
 
 var conn = process.testZongJi || {};
 
@@ -44,22 +45,24 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
     var insertColumns = fields.map(function(field, index){
       return 'col' + index;
     }).join(', ');
-    var insertRows = testRows.map(function(row){
-      return '(' + row.map(function(field){
-        return field === null ? 'null' : field;
-      }).join(', ') + ')';
-    }).join(', ');
-
-    if(!minVersion || checkVersion(minVersion, conn.mysqlVersion)){
-      querySequence(conn.db, [
+    var testQueries = [
         'DROP TABLE IF EXISTS ' + conn.escId(testTable),
         'CREATE TABLE ' + conn.escId(testTable) + ' (' + fieldText + ')',
-        'SET @@session.time_zone = "+00:00"',
-        'INSERT INTO ' + conn.escId(testTable) +
-          ' (' + insertColumns + ') VALUES ' + insertRows,
+        'SET @@session.time_zone = "+00:00"']
+      .concat(testRows.map(function(row){
+        return 'INSERT INTO ' + conn.escId(testTable) +
+          ' (' + insertColumns + ') VALUES (' +
+            row.map(function(field){
+              return field === null ? 'null' : field;
+            }).join(', ') + ')';
+      }))
+      .concat([
         'SET @@session.time_zone = "SYSTEM"',
         'SELECT * FROM ' + conn.escId(testTable)
-      ], function(results){
+      ]);
+
+    if(!minVersion || checkVersion(minVersion, conn.mysqlVersion)){
+      querySequence(conn.db, testQueries, function(results){
         var selectResult = results[results.length - 1];
         var expectedWrite = {
           _type: 'WriteRows',
@@ -70,22 +73,6 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
           }
         };
 
-        if(customTest){
-          expectedWrite._custom = customTest.bind(selectResult);
-        }else{
-          expectedWrite.rows = selectResult.map(function(row){
-            for(var field in row){
-              if(row.hasOwnProperty(field) &&
-                  row[field] instanceof Buffer &&
-                  name === 'blob'){
-                // Special case where blobs return as String instead of Buffer
-                row[field] = row[field].toString();
-              }
-            }
-            return row;
-          });
-        };
-
         expectEvents(test, conn.eventLog, [
           {
             _type: 'TableMap',
@@ -93,12 +80,24 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
             schemaName: settings.database
           },
           expectedWrite
-        ], function(){
+        ], testRows.length, function(){
           test.equal(conn.errorLog.length, 0);
           conn.errorLog.length &&
             console.log('Type Test Error: ', name, conn.errorLog);
           if(conn.errorLog.length){
             throw conn.errorLog[0];
+          }
+          var binlogRows = conn.eventLog.reduce(function(prev, curr, index) {
+            if(curr.getTypeName() === 'WriteRows') {
+              prev = prev.concat(curr.rows);
+            }
+            return prev;
+          }, []);
+
+          if(customTest) {
+            customTest.bind(selectResult)(test, { rows: binlogRows });
+          } else {
+            test.deepEqual(selectResult, binlogRows);
           }
 
           test.done();
@@ -221,7 +220,8 @@ defineTypeTest('decimal', [
   'DECIMAL(30, 10) NULL'
 ], [
   [1.0], [-1.0], [123.456], [-13.47],
-  [123456789.123], [-123456789.123], [null]
+  [123456789.123], [-123456789.123], [null],
+  [1447410019.012], [123.00000123]
 ]);
 
 defineTypeTest('blob', [
@@ -329,10 +329,10 @@ defineTypeTest('string', [
 defineTypeTest('text', [
   'TINYTEXT NULL',
   'MEDIUMTEXT NULL',
-  'LONGTEXT NULL',
+  'LONGTEXT CHARACTER SET utf8 NULL',
   'TEXT NULL'
 ], [
-  ['"something here"', '"tiny"', '"a"', '"binary"'],
+  ['"something here"', '"tiny"', '"á"', '"binary"'],
   ['"nothing there"', '"small"', '"b"', '"test123"'],
   [null, null, null, null]
 ]);
@@ -345,3 +345,148 @@ defineTypeTest('datetime_then_decimal', [
   ['"9999-12-31 23:59:59.001"', -123.45],
   ['"2014-12-27 01:07:08.053"', 12345.123]
 ], '5.6.4');
+
+defineTypeTest('json', [
+  'JSON NULL'
+], [
+  // Small Object
+  ['\'{"key1": "value1", "key2": "value2", "key3": 34}\''],
+  // Small Object with nested object
+  ['\'{"key1": { "key2": "value2", "key3": 34 } }\''],
+  // Small Object with double nested object
+  ['\'{"key1": { "key2": { "key2": "value2", "key3": 34 }, "key3": 34 } }\''],
+  // Small Object with unicode character in key and value
+  ['\'{ "key2": "válue2", "keybá3": 34 }\''],
+  // Large Object
+  ['\'{' + strRepeat('"key##": "value##", ', 2839) + '"keyLast": 34}\''],
+  // Large Object with nested small objects
+  ['\'{' + strRepeat('"key##": {"subkey": "value##"}, ', 2000) + '"keyLast": 34}\''],
+  // Large Object with nested small arrays
+  ['\'{' + strRepeat('"key##": ["a", ##], ', 3000) + '"keyLast": 34}\''],
+  // Small array
+  ['\'["a", "b", 1]\''],
+  // Small array with nested array
+  ['\'["a", [2, "b"], 1]\''],
+  // Small array with double nested array
+  ['\'["a", [2, ["b", 4, 54]], 1]\''],
+  // Large Array
+  ['\'[' + strRepeat('"value##", ', 6000) + '34]\''],
+  // Large Array with nested small objects
+  ['\'[' + strRepeat('{"key##": "value##"}, ', 6000) + '34]\''],
+  // Large Array with nested small arrays
+  ['\'[' + strRepeat('[##, "value##"], ', 6000) + '34]\''],
+  // Strings of various lengths
+  ['\'"hello"\''],
+  ['\'{"twobytelen": "' + strRepeat('a', 256) + '"}\''],
+  ['\'{"twobytelen": "' + strRepeat('a', 257) + '"}\''],
+  ['\'{"twobytelen": "' + strRepeat('a', 258) + '"}\''],
+  ['\'{"twobytelen": "' + strRepeat('a', 7383) + '"}\''],
+  ['\'{"twobytelen": "' + strRepeat('a', 16383) + '"}\''],
+  ['\'{"threebytelen": "' + strRepeat('a', 16388) + '"}\''],
+  // Integers
+  ['\'{"key1": -10, "keyb": 34}\''],
+  ['\'10\''],
+  ['\'2147483647\''], // Int32
+  ['\'-2147483647\''], // Int32
+  ['\'2147483648\''], // Int64
+  ['\'4294967295\''], // Int64
+  ['\'-4294967295\''], // Int64
+  ['\'9007199254740992\''], // UInt64
+  ['\'-9007199254740992\''], // Int64
+  ['\'3e2\''],
+  ['\'-3e-2\''],
+  // Doubles
+  ['\'10.123\''],
+  ['\'{"doubleval": "-123.38439", "another": 1283192.0004}\''],
+  // Literals
+  ['\'{"literaltest1": null, "literal2": true, "literal3": false}\''],
+  ['\'{"literaltest1": null, "stringafter": "heyos", "number": 35}\''],
+  ['\'null\''],
+  ['\'true\''],
+  ['\'false\''],
+  // Opaque custom data
+  ['JSON_OBJECT(\'key\', BINARY \'hi\')'],
+  ['JSON_OBJECT(\'key\', MAKEDATE(2014,361))'],
+  ['JSON_OBJECT(\'key\', DATE(\'100-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'1000-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'1000-01-02\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'1000-01-03\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'1000-02-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'1000-12-31\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2001-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2002-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2003-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2004-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'9999-01-01\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'9999-12-31\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2002-02-02\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2002-03-03\'))'],
+  ['JSON_OBJECT(\'key\', DATE(\'2002-12-12\'))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(-838,59,59))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(838,59,59))'],
+  ['JSON_OBJECT(\'zero\', MAKETIME(0,0,0))'],
+  ['JSON_OBJECT(\'onehour\', MAKETIME(1,0,0))'],
+  ['JSON_OBJECT(\'oneminu\', MAKETIME(0,1,0))'],
+  ['JSON_OBJECT(\'oneseco\', MAKETIME(0,0,1))'],
+  ['JSON_OBJECT(\'hurnsec\', MAKETIME(1,0,1))'],
+  ['JSON_OBJECT(\'minnsec\', MAKETIME(0,1,1))'],
+  ['JSON_OBJECT(\'2minsec\', MAKETIME(0,2,2))'],
+  ['JSON_OBJECT(\'2min15sec\', MAKETIME(0,2,15))'],
+  ['JSON_OBJECT(\'2min16sec\', MAKETIME(0,2,16))'],
+  ['JSON_OBJECT(\'2min32sec\', MAKETIME(0,2,32))'],
+  ['JSON_OBJECT(\'2min59sec\', MAKETIME(0,2,59))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(0,59,0))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(0,0,59))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(20,15,10))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(21,15,10))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(22,15,10))'],
+  ['JSON_OBJECT(\'oneseco\', MAKETIME(0,0,1.123))'],
+  ['JSON_OBJECT(\'oneseco\', MAKETIME(0,0,1.000123))'],
+  ['JSON_OBJECT(\'key\', MAKETIME(-20,00,00))'],
+  ['JSON_OBJECT(\'-59min\', TIME(\'-00:00:00.003\'))'],
+  ['JSON_OBJECT(\'-59min\', TIME(\'00:00:00.003\'))'],
+  ['JSON_OBJECT(\'-59min\', TIME(\'-00:59:59\'))'],
+  ['JSON_OBJECT(\'-59min\', TIME(\'-00:59:59.0003\'))'],
+  ['JSON_OBJECT(\'-1hr\', MAKETIME(-1,00,00))'],
+  ['JSON_OBJECT(\'-2hr\', MAKETIME(-2,00,00))'],
+  ['JSON_OBJECT(\'-1hr1sec\', MAKETIME(-1,00,1))'],
+  ['JSON_OBJECT(\'-1hr1sec\', MAKETIME(-1,00,0.1))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2014-12-27\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2014-12-27 01:07:08\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2014-12-27 01:07:08.123\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2014-12-27 01:07:08.000456\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2014-12-28\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2014-12-29\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2003-12-31 12:00:00\'))'],
+  ['JSON_OBJECT(\'key\', TIMESTAMP(\'2003-12-31 12:00:00.123\'))'],
+  ['JSON_OBJECT(\'key\', UNIX_TIMESTAMP(\'2015-11-13 10:20:19.012\'))'],
+], function(test, event){
+  // JSON from MySQL client has different whitespace than JSON.stringify
+  // Therefore, parse and perform deep equality
+  event.rows.forEach(function(row, index) {
+    // test.deepEqual does not work when comparison objects exceed 65536 bytes
+    // Perform alternative assertions for these large cases
+    var expected = JSON.parse(this[index].col0);
+    var actual = JSON.parse(row.col0);
+    if(this[index].col0.length > 65536) {
+      // Large cases are either array or object
+      if(expected instanceof Array) {
+        test.strictEqual(expected.length, actual.length);
+        for(var i = 0; i < expected.length; i++) {
+          test.deepEqual(expected[i], actual[i]);
+        }
+      } else {
+        var expectedKeys = Object.keys(expected);
+        var actualKeys = Object.keys(actual);
+        test.strictEqual(expectedKeys.length, actualKeys.length);
+        test.deepEqual(expectedKeys, actualKeys);
+        for(var i = 0; i < expectedKeys.length; i++) {
+          test.deepEqual(expected[expectedKeys[i]], actual[expectedKeys[i]]);
+        }
+      }
+    } else {
+      // Comparison objects are smaller than 65536 bytes
+      test.deepEqual(expected, actual);
+    }
+  }.bind(this));
+}, '5.7.8');
