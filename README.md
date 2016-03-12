@@ -5,7 +5,7 @@ ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
 This package is a "pure JS" implementation based on [`node-mysql`](https://github.com/felixge/node-mysql). Since v0.2.0, The native part (which was written in C++) has been dropped.
 
-This package has been tested with MySQL server 5.5.40 and 5.6.19. All MySQL server versions >= 5.1.15 are supported.
+This package has been tested to work in MySQL 5.1, 5.5, 5.6, and 5.7. All MySQL server version greater than 5.1.14 are supported.
 
 ## Quick Start
 
@@ -37,14 +37,17 @@ For a complete implementation see [`example.js`](example.js)...
   > From [MySQL 5.6](https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html), binlog checksum is enabled by default. Zongji can work with it, but it doesn't really verify it.
 
   ```
-  # binlog config
+  # Must be unique integer from 1-2^32
   server-id        = 1
-  log_bin          = /var/log/mysql/mysql-bin.log
-  expire_logs_days = 10            # optional
-  max_binlog_size  = 100M          # optional
-
-  # Very important if you want to receive write, update and delete row events
+  # Row format required for ZongJi
   binlog_format    = row
+  # Directory must exist. This path works for Linux. Other OS may require
+  #   different path.
+  log_bin          = /var/log/mysql/mysql-bin.log
+
+  binlog_do_db     = employees   # Optional, limit which databases to log
+  expire_logs_days = 10          # Optional, purge old logs
+  max_binlog_size  = 100M        # Optional, limit log size
   ```
 * Create an account with replication privileges, e.g. given privileges to account `zongji` (or any account that you use to read binary logs)
 
@@ -60,7 +63,7 @@ Each instance includes the following methods:
 
 Method Name | Arguments | Description
 ------------|-----------|------------------------
-`start`     | `options` | Start receiving replication events
+`start`     | `options` | Start receiving replication events, see options listed below
 `stop`      | *None*    | Disconnect from MySQL server, stop receiving events
 `set`       | `options` | Change options after `start()`
 `on`        | `eventName`, `handler` | Add a listener to the `binlog` or `error` event. Each handler function accepts one argument.
@@ -79,7 +82,7 @@ Option Name | Type | Description
 * By default, all events and schema are emitted.
 * `excludeSchema` and `excludeEvents` take precedence over `includeSchema` and `includeEvents`, respectively.
 
-**Supported Events:**
+**Supported Binlog Events:**
 
 Event name  | Description
 ------------|---------------
@@ -89,9 +92,9 @@ Event name  | Description
 `format`    | [Format Description](http://dev.mysql.com/doc/internals/en/format-description-event.html)
 `xid`       | [Transaction ID](http://dev.mysql.com/doc/internals/en/xid-event.html)
 `tablemap`  | Before any row event (must be included for any other row events)
-`writerows` | Rows inserted
-`updaterows` | Rows changed
-`deleterows` | Rows deleted
+`writerows` | Rows inserted, row data array available as `rows` property on event object
+`updaterows` | Rows changed, row data array available as `rows` property on event object
+`deleterows` | Rows deleted, row data array available as `rows` property on event object
 
 **Event Methods**
 
