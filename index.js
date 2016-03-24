@@ -12,15 +12,15 @@ function ZongJi(dsn, options) {
   var ctrlDsn = cloneObjectSimple(dsn);
   ctrlDsn.database = 'information_schema';
   this.ctrlConnection = mysql.createConnection(ctrlDsn);
-  this.ctrlConnection.on('error', this._emitError);
-  this.ctrlConnection.on('unhandledError', this._emitError);
+  this.ctrlConnection.on('error', this._emitError.bind(this));
+  this.ctrlConnection.on('unhandledError', this._emitError.bind(this));
 
   this.ctrlConnection.connect();
   this.ctrlCallbacks = [];
 
   this.connection = mysql.createConnection(dsn);
-  this.connection.on('error', this._emitError);
-  this.connection.on('unhandledError', this._emitError);
+  this.connection.on('error', this._emitError.bind(this));
+  this.connection.on('unhandledError', this._emitError.bind(this));
 
   this.tableMap = {};
   this.ready = false;
