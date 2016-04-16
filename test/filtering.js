@@ -92,7 +92,8 @@ module.exports = {
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
       'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
       'DELETE FROM ' + conn.escId(testTable)
-    ], function(){
+    ], function(error, result){
+      if(error) console.error(error);
       // Give 1 second to see if any events are emitted, they should not be!
       setTimeout(function(){
         conn.zongji.set(origOptions);

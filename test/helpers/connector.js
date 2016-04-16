@@ -20,7 +20,8 @@ module.exports = function(settings, callback){
     'USE ' + escId(settings.database),
     'RESET MASTER',
     'SELECT VERSION() AS version'
-  ], function(results){
+  ], function(error, results){
+    if(error) console.error(error);
     
     self.mysqlVersion = results[results.length - 1][0].version
       .split('-')[0]
