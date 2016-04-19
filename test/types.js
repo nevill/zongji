@@ -330,10 +330,10 @@ defineTypeTest('string', [
 defineTypeTest('text', [
   'TINYTEXT NULL',
   'MEDIUMTEXT NULL',
-  'LONGTEXT CHARACTER SET utf8 NULL',
+  'LONGTEXT NULL',
   'TEXT NULL'
 ], [
-  ['"something here"', '"tiny"', '"á"', '"binary"'],
+  ['"something here"', '"tiny"', '"a"', '"binary"'],
   ['"nothing there"', '"small"', '"b"', '"test123"'],
   [null, null, null, null]
 ]);

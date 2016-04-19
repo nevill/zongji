@@ -5,6 +5,7 @@ module.exports = {
     host     : 'localhost',
     user     : 'root',
     password : 'numtel',
+    charset  : 'utf8mb4_unicode_ci',
     // debug: true
   },
   database: 'zongji_test'
