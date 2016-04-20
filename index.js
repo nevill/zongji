@@ -58,9 +58,18 @@ ZongJi.prototype._init = function() {
     {
       name: '_findBinlogEnd',
       callback: function(result){
-        if(result && self.options.startAtEnd){
-          binlogOptions.filename = result.Log_name;
-          binlogOptions.position = result.File_size;
+       if (result && self.options.startAtEnd) {
+              //startAtEnd can be boolean or object {'filename':'logbin.000003', 'position':1022}
+              //then it will start from filename and position to watch binlog
+              if ('object' === typeof self.options.startAtEnd) {
+                    binlogOptions.filename = self.options.startAtEnd.filename || result.Log_name;
+                    binlogOptions.position = self.options.startAtEnd.position || result.File_size;
+              }
+              else {
+                    binlogOptions.filename = result.Log_name;
+                    binlogOptions.position = result.File_size;
+             }
+
         }
       }
     }
@@ -212,8 +221,13 @@ ZongJi.prototype.start = function(options) {
           self.connection.pause();
           self._fetchTableInfo(event, function() {
             // merge the column info with metadata
-            event.updateColumnInfo();
-            self.emit('binlog', event);
+            try {
+                event.updateColumnInfo();
+                self.emit('binlog', event);
+            }
+            catch (err) {
+                self.emit('error', err);
+            }
             self.connection.resume();
           });
           return;
