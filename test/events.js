@@ -57,7 +57,8 @@ module.exports = {
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-    ], function(results){
+    ], function(error, results){
+      if(error) console.error(error);
       // Start second ZongJi instance
       var zongji = new ZongJi(settings.connection);
       var events = [];
@@ -76,7 +77,8 @@ module.exports = {
       setTimeout(function(){
         querySequence(conn.db, [
           'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-        ], function(results){
+        ], function(error, results){
+          if(error) console.error(error);
           // Should only have 2 events since ZongJi start
           expectEvents(test, events, [
             { /* do not bother testing anything on first event */ },
@@ -98,7 +100,8 @@ module.exports = {
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
       'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
       'DELETE FROM ' + conn.escId(testTable)
-    ], function(){
+    ], function(error, results){
+      if(error) console.error(error);
       expectEvents(test, conn.eventLog, [
         tableMapEvent(testTable),
         {
@@ -171,7 +174,8 @@ module.exports = {
           '(123456, 100, 96, 300, 1000, null), ' +
           '(-123456, -100, -96, -300, -1000, null)',
        'SELECT * FROM ' + conn.escId(testTable)
-    ], function(results){
+    ], function(error, results){
+      if(error) console.error(error);
       expectEvents(test, conn.eventLog, [
         { /* do not bother testing anything on first event */ },
         { rows: results[results.length - 1] }

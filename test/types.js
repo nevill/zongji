@@ -62,7 +62,8 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
       ]);
 
     if(!minVersion || checkVersion(minVersion, conn.mysqlVersion)){
-      querySequence(conn.db, testQueries, function(results){
+      querySequence(conn.db, testQueries, function(error, results){
+        if(error) console.error(error);
         var selectResult = results[results.length - 1];
         var expectedWrite = {
           _type: 'WriteRows',
@@ -329,13 +330,20 @@ defineTypeTest('string', [
 defineTypeTest('text', [
   'TINYTEXT NULL',
   'MEDIUMTEXT NULL',
-  'LONGTEXT CHARACTER SET utf8 NULL',
+  'LONGTEXT NULL',
   'TEXT NULL'
 ], [
-  ['"something here"', '"tiny"', '"á"', '"binary"'],
+  ['"something here"', '"tiny"', '"a"', '"binary"'],
   ['"nothing there"', '"small"', '"b"', '"test123"'],
   [null, null, null, null]
 ]);
+
+defineTypeTest('utf8mb4', [
+  'VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+], [
+  ['"á"'], // 3 byte character
+  ['"𠜎"'], // 4 byte character
+], '5.5.3');
 
 defineTypeTest('datetime_then_decimal', [
   'DATETIME(3) NULL',
