@@ -20,7 +20,6 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
       if(!errorTrapped && ACCEPTABLE_ERRORS.indexOf(error.code) > -1) {
         errorTrapped = true;
         killThread(cleanupKillIdFun);
-        test.done();
       }
     });
 
@@ -32,8 +31,16 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
 
     function killThread(argFun) {
       var threadId = argFun(zongji);
-      test.ok(!isNaN(threadId));
-      conn.db.query('KILL ' + threadId);
+      if (threadId.getConnection) {
+        threadId.getConnection(function(err, connection) {
+          test.ok(!isNaN(connection.threadId));
+          conn.db.query('KILL ' + connection.threadId);
+          test.done();
+        });
+      } else {
+        test.ok(!isNaN(threadId));
+        conn.db.query('KILL ' + threadId);
+      }
     }
 
     function isZongjiReady() {
@@ -69,9 +76,9 @@ module.exports = {
   },
   binlogConnection_disconnect: generateDisconnectionCase(
     function onReady(zongji) { return zongji.connection.threadId },
-    function onCleanup(zongji) { return zongji.ctrlConnection.threadId }),
+    function onCleanup(zongji) { return zongji.ctrlPool }),
   ctrlConnection_disconnect: generateDisconnectionCase(
-    function onReady(zongji) { return zongji.ctrlConnection.threadId },
+    function onReady(zongji) { return zongji.ctrlPool },
     function onCleanup(zongji) { return zongji.connection.threadId }),
   invalid_host: function(test) {
     var zongji = new ZongJi({
