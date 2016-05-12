@@ -31,10 +31,8 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
 
     function killThread(argFun) {
       var threadId = argFun(zongji);
-      if (threadId.getConnection) {
-        threadId.getConnection(function(err, connection) {
-          test.ok(!isNaN(connection.threadId));
-          conn.db.query('KILL ' + connection.threadId);
+      if (typeof threadId === 'object') {
+        threadId.end(function (err) {
           test.done();
         });
       } else {
