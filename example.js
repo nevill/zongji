@@ -18,6 +18,7 @@ zongji.start({
 
 process.on('SIGINT', function() {
   console.log('Got SIGINT.');
-  zongji.stop();
-  process.exit();
+  zongji.stop(function (err) {
+    process.exit();
+  });
 });

@@ -11,11 +11,10 @@ function ZongJi(dsn, options) {
   // to send table info query
   var ctrlDsn = cloneObjectSimple(dsn);
   ctrlDsn.database = 'information_schema';
-  this.ctrlConnection = mysql.createConnection(ctrlDsn);
-  this.ctrlConnection.on('error', this._emitError.bind(this));
-  this.ctrlConnection.on('unhandledError', this._emitError.bind(this));
+  this.ctrlPool = mysql.createPool(ctrlDsn);
+  this.ctrlPool.on('error', this._emitError.bind(this));
+  this.ctrlPool.on('unhandledError', this._emitError.bind(this));
 
-  this.ctrlConnection.connect();
   this.ctrlCallbacks = [];
 
   this.connection = mysql.createConnection(dsn);
@@ -96,10 +95,10 @@ ZongJi.prototype._init = function() {
 ZongJi.prototype._isChecksumEnabled = function(next) {
   var self = this;
   var sql = 'select @@GLOBAL.binlog_checksum as checksum';
-  var ctrlConnection = self.ctrlConnection;
+  var ctrlPool = self.ctrlPool;
   var connection = self.connection;
 
-  ctrlConnection.query(sql, function(err, rows) {
+  ctrlPool.query(sql, function(err, rows) {
     if (err) {
       if(err.toString().match(/ER_UNKNOWN_SYSTEM_VARIABLE/)){
         // MySQL < 5.6.2 does not support @@GLOBAL.binlog_checksum
@@ -134,7 +133,7 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
 
 ZongJi.prototype._findBinlogEnd = function(next) {
   var self = this;
-  self.ctrlConnection.query('SHOW BINARY LOGS', function(err, rows) {
+  self.ctrlPool.query('SHOW BINARY LOGS', function(err, rows) {
     if (err) {
       // Errors should be emitted
       self.emit('error', err);
@@ -162,7 +161,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var sql = util.format(tableInfoQueryTemplate,
     tableMapEvent.schemaName, tableMapEvent.tableName);
 
-  this.ctrlConnection.query(sql, function(err, rows) {
+  this.ctrlPool.query(sql, function(err, rows) {
     if (err) {
       // Errors should be emitted
       self.emit('error', err);
@@ -230,14 +229,16 @@ ZongJi.prototype.start = function(options) {
   }
 };
 
-ZongJi.prototype.stop = function(){
+ZongJi.prototype.stop = function(callback){
   var self = this;
   // Binary log connection does not end with destroy()
   self.connection.destroy();
-  self.ctrlConnection.query(
+  self.ctrlPool.query(
     'KILL ' + self.connection.threadId,
-    function(error, reuslts){
-      self.ctrlConnection.destroy();
+    function(error, results){
+      self.ctrlPool.end(function (err) {
+        callback && callback(err);
+      });
     }
   );
 };

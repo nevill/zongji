@@ -1,4 +1,5 @@
 var ZongJi = require('./../');
+var Pool = require('mysql/lib/Pool');
 var getEventClass = require('./../lib/code_map').getEventClass;
 var settings = require('./settings/mysql');
 var connector =  require('./helpers/connector');
@@ -20,7 +21,6 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
       if(!errorTrapped && ACCEPTABLE_ERRORS.indexOf(error.code) > -1) {
         errorTrapped = true;
         killThread(cleanupKillIdFun);
-        test.done();
       }
     });
 
@@ -32,8 +32,13 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
 
     function killThread(argFun) {
       var threadId = argFun(zongji);
-      test.ok(!isNaN(threadId));
-      conn.db.query('KILL ' + threadId);
+      if (typeof threadId === 'object') {
+        test.done();
+        threadId.end();
+      } else {
+        test.ok(!isNaN(threadId));
+        conn.db.query('KILL ' + threadId);
+      }
     }
 
     function isZongjiReady() {
@@ -69,10 +74,14 @@ module.exports = {
   },
   binlogConnection_disconnect: generateDisconnectionCase(
     function onReady(zongji) { return zongji.connection.threadId },
-    function onCleanup(zongji) { return zongji.ctrlConnection.threadId }),
-  ctrlConnection_disconnect: generateDisconnectionCase(
-    function onReady(zongji) { return zongji.ctrlConnection.threadId },
+    function onCleanup(zongji) { return zongji.ctrlPool }),
+  ctrlPool_disconnect: generateDisconnectionCase(
+    function onReady(zongji) { return zongji.ctrlPool },
     function onCleanup(zongji) { return zongji.connection.threadId }),
+  ctrlPool_prototype: function(test) {
+    test.ok(conn.zongji.ctrlPool instanceof Pool);
+    test.done();
+  },
   invalid_host: function(test) {
     var zongji = new ZongJi({
       host: 'wronghost',
