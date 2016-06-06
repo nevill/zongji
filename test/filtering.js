@@ -102,5 +102,48 @@ module.exports = {
         test.done();
       }, 1000);
     });
+  },
+  changeAfterInit: function(test){
+    // Set includeSchema to skip table after the tableMap has already been
+    // cached once, recieve no row events afterwards
+    var origOptions = conn.zongji.options;
+    var testTable = 'after_init_test';
+    var includeSchema = {};
+    includeSchema[settings.database] = [ testTable ];
+    conn.zongji.set({
+      includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
+      includeSchema: includeSchema
+    });
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+    ], function(error, result){
+      if(error) console.error(error);
+      // Give 1 second to see if any events are emitted, they should not be!
+      setTimeout(function(){
+        // Expect 2 events, TableMap and WriteRows from the INSERT query
+        test.equal(conn.eventLog.length, 2);
+        // Reset eventLog
+        conn.eventLog.splice(0, conn.eventLog.length);
+        // Skip all events from all tables
+        conn.zongji.set({
+          includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
+          includeSchema: {}
+        });
+        querySequence(conn.db, [
+          'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
+          'DELETE FROM ' + conn.escId(testTable)
+        ], function(error, result){
+          if(error) console.error(error);
+          setTimeout(function(){
+            conn.zongji.set(origOptions);
+            test.equal(conn.eventLog.length, 0);
+            test.equal(conn.errorLog.length, 0);
+            test.done();
+          }, 500);
+        });
+      }, 500);
+    });
   }
 }
