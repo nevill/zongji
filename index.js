@@ -2,6 +2,7 @@ var mysql = require('mysql');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var generateBinlog = require('./lib/sequence/binlog');
+var generateRegisterSlave = require('./lib/sequence/registerslave');
 
 function ZongJi(dsn, options) {
   this.set(options);
@@ -88,6 +89,7 @@ ZongJi.prototype._init = function() {
     }
 
     self.binlog = generateBinlog.call(self, binlogOptions);
+    self.registerslave = generateRegisterSlave.call(self, binlogOptions);
     self.ready = true;
     self._executeCtrlCallbacks();
   };
@@ -198,8 +200,15 @@ ZongJi.prototype.start = function(options) {
   var self = this;
   self.set(options);
 
-  var _start = function() {
+  function comregisterslave() {
     self.connection._implyConnect();
+    self.connection._protocol._enqueue(new self.registerslave(function(error, event){
+      if(error) return self.emit('error', error);
+      combinlog();
+    }));
+  }
+
+  function combinlog() {
     self.connection._protocol._enqueue(new self.binlog(function(error, event){
       if(error) return self.emit('error', error);
       // Do not emit events that have been filtered out
@@ -221,12 +230,12 @@ ZongJi.prototype.start = function(options) {
       }
       self.emit('binlog', event);
     }));
-  };
+  }
 
   if (this.ready) {
-    _start();
+    comregisterslave();
   } else {
-    this.ctrlCallbacks.push(_start);
+    this.ctrlCallbacks.push(comregisterslave);
   }
 };
 
