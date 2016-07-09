@@ -74,6 +74,8 @@ Option Name | Type | Description
 ------------|------|-------------------------------
 `serverId`  | `integer` | [Unique number (1 - 2<sup>32</sup>)](http://dev.mysql.com/doc/refman/5.0/en/replication-options.html#option_mysqld_server-id) to identify this replication slave instance. Must be specified if running more than one instance of ZongJi. Must be used in `start()` method for effect.<br>**Default:** `1`
 `startAtEnd` | `boolean` | Pass `true` to only emit binlog events that occur after ZongJi's instantiation. Must be used in `start()` method for effect.<br>**Default:** `false`
+`binlogName` | `string` | Begin reading events from this binlog file. If specified together with `binlogNextPos`, will take precedence over `startAtEnd`.
+`binlogNextPos` | `integer` | Begin reading events from this position. Must be included with `binlogName`.
 `includeEvents` | `[string]` | Array of event names to include<br>**Example:** `['writerows', 'updaterows', 'deleterows']`
 `excludeEvents` | `[string]` | Array of event names to exclude<br>**Example:** `['rotate', 'tablemap']`
 `includeSchema` | `object` | Object describing which databases and tables to include (Only for row events). Use database names as the key and pass an array of table names or `true` (for the entire database).<br>**Example:** ```{ 'my_database': ['allow_table', 'another_table'], 'another_db': true }```
@@ -88,7 +90,7 @@ Event name  | Description
 ------------|---------------
 `unknown`   | Catch any other events
 `query`     | [Insert/Update/Delete Query](http://dev.mysql.com/doc/internals/en/query-event.html)
-`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html) (not required to be included to rotate to new files)
+`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html) Not required to be included to rotate to new files, but it is required to be included in order to keep the `binlogName` and `binlogNextPos` properties updated with current values for [graceful restarting on errors](https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f).
 `format`    | [Format Description](http://dev.mysql.com/doc/internals/en/format-description-event.html)
 `xid`       | [Transaction ID](http://dev.mysql.com/doc/internals/en/xid-event.html)
 `tablemap`  | Before any row event (must be included for any other row events)

@@ -25,6 +25,9 @@ function ZongJi(dsn, options) {
   this.tableMap = {};
   this.ready = false;
   this.useChecksum = false;
+  // Include 'rotate' events to keep these properties updated
+  this.binlogName = null;
+  this.binlogNextPos = null;
 
   this._init();
 }
@@ -85,6 +88,11 @@ ZongJi.prototype._init = function() {
     // Run asynchronously from _init(), as serverId option set in start()
     if(self.options.serverId !== undefined){
       binlogOptions.serverId = self.options.serverId;
+    }
+
+    if(('binlogName' in self.options) && ('binlogNextPos' in self.options)) {
+      binlogOptions.filename = self.options.binlogName;
+      binlogOptions.position = self.options.binlogNextPos
     }
 
     self.binlog = generateBinlog.call(self, binlogOptions);
@@ -205,20 +213,28 @@ ZongJi.prototype.start = function(options) {
       // Do not emit events that have been filtered out
       if(event === undefined || event._filtered === true) return;
 
-      if (event.getTypeName() === 'TableMap') {
-        var tableMap = self.tableMap[event.tableId];
+      switch(event.getTypeName()) {
+        case 'TableMap':
+          var tableMap = self.tableMap[event.tableId];
 
-        if (!tableMap) {
-          self.connection.pause();
-          self._fetchTableInfo(event, function() {
-            // merge the column info with metadata
-            event.updateColumnInfo();
-            self.emit('binlog', event);
-            self.connection.resume();
-          });
-          return;
-        }
+          if (!tableMap) {
+            self.connection.pause();
+            self._fetchTableInfo(event, function() {
+              // merge the column info with metadata
+              event.updateColumnInfo();
+              self.emit('binlog', event);
+              self.connection.resume();
+            });
+            return;
+          }
+          break;
+        case 'Rotate':
+          if (self.binlogName !== event.binlogName) {
+            self.binlogName = event.binlogName;
+          }
+          break;
       }
+      self.binlogNextPos = event.nextPosition;
       self.emit('binlog', event);
     }));
   };
