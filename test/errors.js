@@ -73,6 +73,89 @@ module.exports = {
   ctrlConnection_disconnect: generateDisconnectionCase(
     function onReady(zongji) { return zongji.ctrlConnection.threadId },
     function onCleanup(zongji) { return zongji.connection.threadId }),
+
+  reconnect_at_pos: function(test) {
+    // Test that binlog events come through in correct sequence after
+    // reconnect using the binlogName and binlogNextPos properties
+    var NEW_INST_TIMEOUT = 1000;
+    var UPDATE_INTERVAL = 300;
+    var UPDATE_COUNT = 5;
+    var TEST_TABLE = 'reconnect_at_pos';
+
+    var updatesSent = 0, updateEvents = 0;
+
+    // Create a new ZongJi instance using some default options that will count
+    // using the values in the new rows inserted
+    function startNewZongJi(options) {
+      var zongji = new ZongJi(settings.connection);
+
+      zongji.start(Object.keys(options || {}).reduce(function(opts, setKey) {
+        // Object.assign-like to support node 0.10
+        opts[setKey] = options[setKey];
+        return opts;
+      }, {
+        // Must include rotate events for binlogName and binlogNextPos properties
+        includeEvents: ['rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows']
+      }));
+      zongji.on('binlog', function(event) {
+        if(event.getTypeName() === 'WriteRows') {
+          if(updateEvents++ !== event.rows[0].col) {
+            exitTest('Events in the wrong order');
+          } else if(updateEvents === UPDATE_COUNT) {
+            exitTest();
+          }
+        }
+      });
+      return zongji;
+    }
+
+    var firstZongJi;
+    var secondZongJi;
+
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(TEST_TABLE),
+      'CREATE TABLE ' + conn.escId(TEST_TABLE) + ' (col INT UNSIGNED)',
+      'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (10)',
+    ], function(error, results) {
+      if(error)
+        return exitTest(error);
+
+      firstZongJi = startNewZongJi({
+        serverId: 14,
+        startAtEnd: true
+      });
+
+      setTimeout(function() {
+        // Start new ZongJi instance where the previous was when stopped
+        firstZongJi.stop();
+        secondZongJi = startNewZongJi({
+          serverId: 16,
+          binlogName: firstZongJi.binlogName,
+          binlogNextPos: firstZongJi.binlogNextPos
+        });
+
+      }, NEW_INST_TIMEOUT);
+    });
+
+    function exitTest(error) {
+      test.ifError(error);
+      firstZongJi.stop && firstZongJi.stop();
+      secondZongJi.stop && secondZongJi.stop();
+      test.done();
+    }
+
+    var updateInterval = setInterval(function() {
+      if(updatesSent++ < UPDATE_COUNT) {
+        querySequence(conn.db, [
+          'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (' + updateEvents + ')',
+        ], function(error, results) { error && exitTest(error) });
+      } else {
+        clearInterval(updateInterval);
+      }
+    }, UPDATE_INTERVAL);
+
+  },
+
   invalid_host: function(test) {
     var zongji = new ZongJi({
       host: 'wronghost',
