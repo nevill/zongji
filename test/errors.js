@@ -163,7 +163,7 @@ module.exports = {
       password: "wrongpass"
     });
     zongji.on('error', function(error) {
-      test.equal(error.code, 'ENOTFOUND');
+      test.ok([ 'ENOTFOUND', 'ETIMEDOUT' ].indexOf(error.code) !== -1);
       test.done();
     });
   },
