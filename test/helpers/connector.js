@@ -15,6 +15,7 @@ module.exports = function(settings, callback){
 
   // Perform initialization queries sequentially
   querySequence(db, [
+    'SET GLOBAL sql_mode = \'' + settings.sessionSqlMode + '\'',
     'DROP DATABASE IF EXISTS ' + escId(settings.database),
     'CREATE DATABASE ' + escId(settings.database),
     'USE ' + escId(settings.database),
