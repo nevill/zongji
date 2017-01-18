@@ -6,12 +6,10 @@ module.exports = {
     user     : 'root',
     password : 'numtel',
     charset  : 'utf8mb4_unicode_ci',
+    port     : process.env.TEST_MYSQL_PORT,
     // debug: true
   },
-  database: 'zongji_test'
+  database: 'zongji_test',
+  sessionSqlMode: process.env.TEST_SESSION_SQL_MODE || ''
 }
 
-if(process.env.TRAVIS){
-  // Port to use is passed as variable
-  module.exports.connection.port = process.env.TEST_MYSQL_PORT;
-}
