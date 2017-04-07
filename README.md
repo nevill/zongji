@@ -90,6 +90,7 @@ Event name  | Description
 ------------|---------------
 `unknown`   | Catch any other events
 `query`     | [Insert/Update/Delete Query](http://dev.mysql.com/doc/internals/en/query-event.html)
+`intvar`    | [Autoincrement and LAST_INSERT_ID](https://dev.mysql.com/doc/internals/en/intvar-event.html)
 `rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html) Not required to be included to rotate to new files, but it is required to be included in order to keep the `binlogName` and `binlogNextPos` properties updated with current values for [graceful restarting on errors](https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f).
 `format`    | [Format Description](http://dev.mysql.com/doc/internals/en/format-description-event.html)
 `xid`       | [Transaction ID](http://dev.mysql.com/doc/internals/en/xid-event.html)
