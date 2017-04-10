@@ -194,6 +194,8 @@ module.exports = {
       var events = [];
 
       zongji.on('binlog', function(event) {
+        if (event.getTypeName() === 'Query' && event.query === 'BEGIN')
+          return;
         events.push(event);
       });
 
@@ -215,13 +217,10 @@ module.exports = {
         ], function(error, results){
           if(error) console.error(error);
           expectEvents(test, events, [
-            {},
             { _type: 'IntVar', type: 2, value: 1 },
             { _type: 'Query' },
-            {},
             { _type: 'IntVar', type: 2, value: 2 },
             { _type: 'Query' },
-            {},
             { _type: 'IntVar', type: 1, value: 2 },
             { _type: 'Query' },
           ], 1, function(){
