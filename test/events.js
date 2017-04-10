@@ -54,6 +54,7 @@ module.exports = {
     var testTable = 'start_at_end_test';
     querySequence(conn.db, [
       'FLUSH LOGS', // Ensure Zongji perserveres through a rotation event
+      'SET SESSION binlog_format=ROW',
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
@@ -95,6 +96,7 @@ module.exports = {
   testWriteUpdateDelete: function(test){
     var testTable = 'events_test';
     querySequence(conn.db, [
+      'SET SESSION binlog_format=ROW',
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
@@ -130,6 +132,7 @@ module.exports = {
   testManyColumns: function(test){
     var testTable = '33_columns';
     querySequence(conn.db, [
+      'SET SESSION binlog_format=ROW',
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (' +
         'col1 INT SIGNED NULL, ' +
