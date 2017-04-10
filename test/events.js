@@ -185,7 +185,6 @@ module.exports = {
   testIntvar: function(test){
     var testTable = 'intvar_test';
     querySequence(conn.db, [
-      'SET SESSION binlog_format=STATEMENT',
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY , col INT)',
     ], function(error, results){
@@ -207,9 +206,12 @@ module.exports = {
       // Give enough time to initialize
       setTimeout(function(){
         querySequence(conn.db, [
+          'SET SESSION binlog_format=STATEMENT',
           'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
           'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (11)',
           'INSERT INTO ' + conn.escId(testTable) + ' (id, col) VALUES (100, LAST_INSERT_ID())',
+          // Other tests expect row-based replication, so reset here
+          'SET SESSION binlog_format=ROW',
         ], function(error, results){
           if(error) console.error(error);
           expectEvents(test, events, [
