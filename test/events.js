@@ -182,5 +182,54 @@ module.exports = {
       ], 1, test.done);
     });
   },
+  testIntvar: function(test){
+    var testTable = 'intvar_test';
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY , col INT)',
+    ], function(error, results){
+      if(error) console.error(error);
+      // Start second ZongJi instance
+      var zongji = new ZongJi(settings.connection);
+      var events = [];
+
+      zongji.on('binlog', function(event) {
+        if (event.getTypeName() === 'Query' && event.query === 'BEGIN')
+          return;
+        events.push(event);
+      });
+
+      zongji.start({
+        startAtEnd: true,
+        serverId: 12, // Second instance must not use same server ID
+        includeEvents: ['intvar', 'query']
+      });
+
+      // Give enough time to initialize
+      setTimeout(function(){
+        querySequence(conn.db, [
+          'SET SESSION binlog_format=STATEMENT',
+          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (11)',
+          'INSERT INTO ' + conn.escId(testTable) + ' (id, col) VALUES (100, LAST_INSERT_ID())',
+          // Other tests expect row-based replication, so reset here
+          'SET SESSION binlog_format=ROW',
+        ], function(error, results){
+          if(error) console.error(error);
+          expectEvents(test, events, [
+            { _type: 'IntVar', type: 2, value: 1 },
+            { _type: 'Query' },
+            { _type: 'IntVar', type: 2, value: 2 },
+            { _type: 'Query' },
+            { _type: 'IntVar', type: 1, value: 2 },
+            { _type: 'Query' },
+          ], 1, function(){
+            zongji.stop();
+            test.done();
+          });
+        });
+      }, 200);
+    });
+  },
 };
 
