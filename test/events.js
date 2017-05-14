@@ -1,3 +1,4 @@
+var mysql = require('mysql');
 var settings = require('./settings/mysql');
 var connector =  require('./helpers/connector');
 var querySequence = require('./helpers/querySequence');
@@ -86,6 +87,62 @@ module.exports = {
           ], 1, function(){
             zongji.stop();
             test.done();
+          });
+        });
+      }, 200);
+
+    });
+  },
+  testPassedConnectionObj: function(test){
+    var testTable = 'conn_obj_test';
+    var connObjs = [
+      { create: mysql.createConnection, end: function(obj) { obj.destroy(); } },
+      { create: mysql.createPool, end: function(obj) { obj.end(); } }
+    ];
+    querySequence(conn.db, [
+      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
+      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
+      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+    ], function(error, results){
+      if(error) console.error(error);
+      // Start second ZongJi instance
+      connObjs.forEach(function(connObj, index) {
+        var ctrlConn = connObj.create(settings.connection);
+        var zongji = new ZongJi(ctrlConn);
+        var events = [];
+
+        zongji.on('binlog', function(event) {
+          events.push(event);
+        });
+
+        zongji.start({
+          startAtEnd: true,
+          serverId: 12 + index, // Second instance must not use same server ID
+          includeEvents: ['tablemap', 'writerows']
+        });
+
+        connObj.zongji = zongji;
+        connObj.events = events;
+      });
+
+      // Give enough time to initialize
+      setTimeout(function(){
+        querySequence(conn.db, [
+          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
+        ], function(error, results){
+          if(error) console.error(error);
+          // Should only have 2 events since ZongJi start
+          var finishedCount = 0;
+          connObjs.forEach(function(connObj, index) {
+            expectEvents(test, connObj.events, [
+              { /* do not bother testing anything on first event */ },
+              { rows: [ { col: 10 } ] }
+            ], 1, function(){
+              connObj.zongji.stop();
+              // When passing connection object, connection doesn't end on stop
+              connObj.end(connObj.zongji.ctrlConnection);
+              if(++finishedCount === connObjs.length - 1) test.done();
+            });
           });
         });
       }, 200);

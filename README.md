@@ -57,7 +57,12 @@ For a complete implementation see [`example.js`](example.js)...
 
 ## ZongJi Class
 
-The `ZongJi` constructor accepts one argument: an object containg MySQL connection details in the same format as used by `node-mysql`.
+The `ZongJi` constructor accepts one argument of either:
+
+* An object containing MySQL connection details in the same format as used by `node-mysql`
+* Or, a `node-mysql` `Connection` or `Pool` object that will be used for querying column information.
+
+If a `Connection` or `Pool` object is passed to the constructor, it will not be destroyed/ended by Zongji's `stop()` method.
 
 Each instance includes the following methods:
 

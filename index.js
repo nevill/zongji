@@ -1,24 +1,47 @@
 var mysql = require('mysql');
+var Connection = require('mysql/lib/Connection');
+var Pool = require('mysql/lib/Pool');
+
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var generateBinlog = require('./lib/sequence/binlog');
+
+var alternateDsn = [
+  { type: Connection, config: function(obj) { return obj.config; } },
+  { type: Pool, config: function(obj) { return obj.config.connectionConfig; } }
+];
 
 function ZongJi(dsn, options) {
   this.set(options);
 
   EventEmitter.call(this);
 
-  // to send table info query
-  var ctrlDsn = cloneObjectSimple(dsn);
-  ctrlDsn.database = 'information_schema';
-  this.ctrlConnection = mysql.createConnection(ctrlDsn);
-  this.ctrlConnection.on('error', this._emitError.bind(this));
-  this.ctrlConnection.on('unhandledError', this._emitError.bind(this));
+  var binlogDsn;
 
-  this.ctrlConnection.connect();
+  // one connection to send table info query
+  // Check first argument against possible connection objects
+  for(var i = 0; i < alternateDsn.length; i++) {
+    if(dsn instanceof alternateDsn[i].type) {
+      this.ctrlConnection = dsn;
+      this.ctrlConnectionOwner = false;
+      binlogDsn = cloneObjectSimple(alternateDsn[i].config(dsn));
+    }
+  }
+
+  if(!binlogDsn) {
+    // assuming that the object passed is the connection settings
+    var ctrlDsn = cloneObjectSimple(dsn);
+    this.ctrlConnection = mysql.createConnection(ctrlDsn);
+    this.ctrlConnection.on('error', this._emitError.bind(this));
+    this.ctrlConnection.on('unhandledError', this._emitError.bind(this));
+    this.ctrlConnection.connect();
+    this.ctrlConnectionOwner = true;
+
+    binlogDsn = dsn;
+  }
   this.ctrlCallbacks = [];
 
-  this.connection = mysql.createConnection(dsn);
+  this.connection = mysql.createConnection(binlogDsn);
   this.connection.on('error', this._emitError.bind(this));
   this.connection.on('unhandledError', this._emitError.bind(this));
 
@@ -163,7 +186,7 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
 var tableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
-  "FROM columns " + "WHERE table_schema='%s' AND table_name='%s'";
+  "FROM information_schema.columns " + "WHERE table_schema='%s' AND table_name='%s'";
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var self = this;
@@ -252,8 +275,9 @@ ZongJi.prototype.stop = function(){
   self.connection.destroy();
   self.ctrlConnection.query(
     'KILL ' + self.connection.threadId,
-    function(error, reuslts){
-      self.ctrlConnection.destroy();
+    function(error, results){
+      if(self.ctrlConnectionOwner)
+        self.ctrlConnection.destroy();
     }
   );
 };
