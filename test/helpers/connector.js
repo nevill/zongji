@@ -2,10 +2,9 @@ var ZongJi = require('./../../');
 var mysql = require('mysql');
 var querySequence = require('./querySequence');
 
-module.exports = function(settings, callback){
+module.exports = function(settings, callback) {
   var self = this;
   var db =       self.db =       mysql.createConnection(settings.connection);
-  var esc =      self.esc =      db.escape.bind(db);
   var escId =    self.escId =    db.escapeId;
   var eventLog = self.eventLog = [];
   var errorLog = self.errorLog = [];
@@ -21,13 +20,13 @@ module.exports = function(settings, callback){
     'USE ' + escId(settings.database),
     'RESET MASTER',
     'SELECT VERSION() AS version'
-  ], function(error, results){
-    if(error) console.error(error);
-    
+  ], function(error, results) {
+    if (error) console.error(error);
+
     self.mysqlVersion = results[results.length - 1][0].version
       .split('-')[0]
       .split('.')
-      .map(function(part){
+      .map(function(part) {
         return parseInt(part, 10);
       });
 
@@ -49,14 +48,14 @@ module.exports = function(settings, callback){
   });
 
   // Extra methods on connector object
-  self.incCount = function(){
+  self.incCount = function() {
     self.testCount++;
   };
 
-  self.closeIfInactive = function(interval){
+  self.closeIfInactive = function(interval) {
     var startCount = self.testCount;
-    setTimeout(function(){
-      if(startCount === self.testCount){
+    setTimeout(function() {
+      if (startCount === self.testCount) {
         self.zongji.stop();
         self.db.destroy();
       }
@@ -64,4 +63,4 @@ module.exports = function(settings, callback){
   };
 
   return self;
-}
+};
