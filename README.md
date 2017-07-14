@@ -23,6 +23,26 @@ zongji.start({
 });
 ```
 
+## Subscribe Binary Log Position
+
+```javascript
+var zongji = new ZongJi({ /* ... MySQL Connection Settings ... */ });
+
+// Receive `binlog_position` events
+zongji.on('binlog_position', function(pos) {
+  console.log(pos);
+  // { filename: 'mysql-bin.000001', position: 77656182 }
+});
+
+// Need both `subscribePosition` and `rotate` to take effect
+zongji.start({
+  subscribePosition: true,
+  includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows', 'rotate']
+});
+```
+> Notice: `pos.filename` won't be updated when `rotate` event is disabled
+
+
 For a complete implementation see [`example.js`](example.js)...
 
 ## Installation
@@ -81,6 +101,7 @@ Option Name | Type | Description
 `startAtEnd` | `boolean` | Pass `true` to only emit binlog events that occur after ZongJi's instantiation. Must be used in `start()` method for effect.<br>**Default:** `false`
 `binlogName` | `string` | Begin reading events from this binlog file. If specified together with `binlogNextPos`, will take precedence over `startAtEnd`.
 `binlogNextPos` | `integer` | Begin reading events from this position. Must be included with `binlogName`.
+`subscribePosition` | `boolean` | Pass `true` to options `zongji.on('binlog_position', function(pos){...})` will receive an object of `{filename:..., position:...}` as argument, the filename properties won't be updated while `rotate` is disabled;
 `includeEvents` | `[string]` | Array of event names to include<br>**Example:** `['writerows', 'updaterows', 'deleterows']`
 `excludeEvents` | `[string]` | Array of event names to exclude<br>**Example:** `['rotate', 'tablemap']`
 `includeSchema` | `object` | Object describing which databases and tables to include (Only for row events). Use database names as the key and pass an array of table names or `true` (for the entire database).<br>**Example:** ```{ 'my_database': ['allow_table', 'another_table'], 'another_db': true }```
