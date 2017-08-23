@@ -245,18 +245,22 @@ ZongJi.prototype.start = function(options) {
       if(error) return self.emit('error', error);
       // Add before `event === undefined || event._filtered === true`, so that all nextPosition can be caught
       if(event){
-        var _posChanged = false;
+        var changed = false;
         if(event.getTypeName() == 'Rotate'){
-          self.binlogName = event.binlogName;
-          // Use event.position because event.nextPosition is incorrect while rotate
-          self.binlogNextPos = event.position;
-          _posChanged = true;
+          if(self.binlogName != event.binlogName || self.binlogNextPos != event.position){
+            self.binlogName = event.binlogName;
+            // Use event.position because event.nextPosition is incorrect while rotate
+            self.binlogNextPos = event.position;
+            changed = true;
+          }
         }else if(event.nextPosition){
-          self.binlogNextPos = event.nextPosition;
-          _posChanged = true;
+          if(self.binlogNextPos != event.nextPosition){
+            self.binlogNextPos = event.nextPosition;
+            changed = true;
+          }
         }
         // Check if need to send `binlog_position` event
-        if(self.options.subscribePosition === true && _posChanged){
+        if(self.options.subscribePosition === true && changed){
           self.emit('binlog_position', {
             filename: self.binlogName,
             position: self.binlogNextPos
