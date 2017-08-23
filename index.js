@@ -84,19 +84,9 @@ ZongJi.prototype._init = function() {
     {
       name: '_findBinlogEnd',
       callback: function(result){
-        if(result){
-          self.binlogName = result.Log_name;
-          self.binlogNextPos = result.File_size;
-          if(self.options.startAtEnd){
-            binlogOptions.filename = result.Log_name;
-            binlogOptions.position = result.File_size;
-          }
-          if(self.options.subscribePosition === true){
-            self.emit('binlog_position', {
-              filename: self.binlogName,
-              position: self.binlogNextPos
-            })
-          }
+        if(result && self.options.startAtEnd){
+          self.binlogName = binlogOptions.filename = result.Log_name;
+          self.binlogNextPos = binlogOptions.position = result.File_size;
         }
       }
     }
@@ -124,8 +114,14 @@ ZongJi.prototype._init = function() {
     }
 
     if(('binlogName' in self.options) && ('binlogNextPos' in self.options)) {
-      binlogOptions.filename = self.options.binlogName;
-      binlogOptions.position = self.options.binlogNextPos
+      self.binlogName = binlogOptions.filename = self.options.binlogName;
+      self.binlogNextPos = binlogOptions.position = self.options.binlogNextPos
+    }
+    if(self.options.subscribePosition){
+      self.emit('binlog_position', {
+        filename: self.binlogName,
+        position: self.binlogNextPos
+      })
     }
 
     self.binlog = generateBinlog.call(self, binlogOptions);
