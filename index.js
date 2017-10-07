@@ -39,6 +39,7 @@ function ZongJi(dsn, options) {
 
     binlogDsn = dsn;
   }
+  this.connectionConfig = cloneObjectSimple(binlogDsn);
   this.ctrlCallbacks = [];
 
   this.connection = mysql.createConnection(binlogDsn);
