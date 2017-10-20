@@ -85,8 +85,8 @@ ZongJi.prototype._init = function() {
       name: '_findBinlogEnd',
       callback: function(result){
         if(result && self.options.startAtEnd){
-          binlogOptions.filename = result.Log_name;
-          binlogOptions.position = result.File_size;
+          self.binlogName = binlogOptions.filename = result.Log_name;
+          self.binlogNextPos = binlogOptions.position = result.File_size;
         }
       }
     }
@@ -114,8 +114,14 @@ ZongJi.prototype._init = function() {
     }
 
     if(('binlogName' in self.options) && ('binlogNextPos' in self.options)) {
-      binlogOptions.filename = self.options.binlogName;
-      binlogOptions.position = self.options.binlogNextPos
+      self.binlogName = binlogOptions.filename = self.options.binlogName;
+      self.binlogNextPos = binlogOptions.position = self.options.binlogNextPos
+    }
+    if(self.options.subscribePosition){
+      self.emit('binlog_position', {
+        filename: self.binlogName,
+        position: self.binlogNextPos
+      })
     }
 
     self.binlog = generateBinlog.call(self, binlogOptions);
@@ -186,12 +192,12 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
 var tableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
-  "FROM information_schema.columns " + "WHERE table_schema='%s' AND table_name='%s'";
+  "FROM information_schema.columns " + "WHERE table_schema=? AND table_name=?";
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var self = this;
-  var sql = util.format(tableInfoQueryTemplate,
-    tableMapEvent.schemaName, tableMapEvent.tableName);
+  var sql = mysql.format(tableInfoQueryTemplate,
+    [tableMapEvent.schemaName, tableMapEvent.tableName]);
 
   this.ctrlConnection.query(sql, function(err, rows) {
     if (err) {
@@ -233,6 +239,30 @@ ZongJi.prototype.start = function(options) {
     self.connection._implyConnect();
     self.connection._protocol._enqueue(new self.binlog(function(error, event){
       if(error) return self.emit('error', error);
+      // Add before `event === undefined || event._filtered === true`, so that all nextPosition can be caught
+      if(event){
+        var changed = false;
+        if(event.getTypeName() == 'Rotate'){
+          if(self.binlogName != event.binlogName || self.binlogNextPos != event.position){
+            self.binlogName = event.binlogName;
+            // Use event.position because event.nextPosition is incorrect while rotate
+            self.binlogNextPos = event.position;
+            changed = true;
+          }
+        }else if(event.nextPosition){
+          if(self.binlogNextPos != event.nextPosition){
+            self.binlogNextPos = event.nextPosition;
+            changed = true;
+          }
+        }
+        // Check if need to send `binlog_position` event
+        if(self.options.subscribePosition === true && changed){
+          self.emit('binlog_position', {
+            filename: self.binlogName,
+            position: self.binlogNextPos
+          })
+        }
+      }
       // Do not emit events that have been filtered out
       if(event === undefined || event._filtered === true) return;
 
@@ -251,13 +281,7 @@ ZongJi.prototype.start = function(options) {
             return;
           }
           break;
-        case 'Rotate':
-          if (self.binlogName !== event.binlogName) {
-            self.binlogName = event.binlogName;
-          }
-          break;
       }
-      self.binlogNextPos = event.nextPosition;
       self.emit('binlog', event);
     }));
   };
