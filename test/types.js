@@ -198,6 +198,17 @@ defineTypeTest('int_unsigned', [
   [123456, 100, 96, 300, 1000]
 ]);
 
+defineTypeTest('bigint', [
+  'BIGINT UNSIGNED NULL',
+  'BIGINT SIGNED NULL'
+], [
+  [10,-10],
+  [9007199254740991, -9007199254740991],
+  ['9007199254740992', '-9007199254740992'],
+  ['19007199254740992', '-19007199254740992'],
+  ['18446744073709551615', '9223372036854775807'], // 2^64-1 unsigned max, 2^63-1 signed max
+]);
+
 defineTypeTest('double', [
   'DOUBLE NULL'
 ], [
