@@ -64,6 +64,8 @@ The `ZongJi` constructor accepts one argument of either:
 
 If a `Connection` or `Pool` object is passed to the constructor, it will not be destroyed/ended by Zongji's `stop()` method.
 
+If there is a `dateStrings` `node-mysql` configuration option in the connection details or connection, `ZongJi` will follow it.
+
 Each instance includes the following methods:
 
 Method Name | Arguments | Description

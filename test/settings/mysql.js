@@ -7,6 +7,7 @@ module.exports = {
     password : 'numtel',
     charset  : 'utf8mb4_unicode_ci',
     port     : process.env.TEST_MYSQL_PORT,
+    dateStrings : process.env.TEST_DATE_STRINGS === 'true',
     // debug: true
   },
   database: 'zongji_test',
