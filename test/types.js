@@ -1,3 +1,4 @@
+var assert = require('assert');
 var settings = require('./settings/mysql');
 var connector =  require('./helpers/connector');
 var querySequence = require('./helpers/querySequence');
@@ -64,7 +65,13 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
     if(!minVersion || checkVersion(minVersion, conn.mysqlVersion)){
       querySequence(conn.db, testQueries, function(error, results){
         if(error) console.error(error);
-        var selectResult = results[results.length - 1];
+        // Convert node-mysql RowDataPacket to plain object
+        var selectResult = results[results.length - 1].map(function(row) {
+          return Object.keys(row).reduce(function(out, key) {
+            out[key] = row[key];
+            return out;
+          }, {});
+        });
         var expectedWrite = {
           _type: 'WriteRows',
           _checkTableMap: function(test, event){
@@ -98,7 +105,12 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
           if(customTest) {
             customTest.bind(selectResult)(test, { rows: binlogRows });
           } else {
-            test.deepEqual(selectResult, binlogRows);
+            try {
+              assert.deepStrictEqual(selectResult, binlogRows);
+            } catch(error) {
+              console.log('RESULT MISMATCH', name, '\nFrom SELECT:\n', selectResult, '\nFrom ZONGJI:\n', binlogRows);
+              test.ok(false);
+            }
           }
 
           test.done();
@@ -198,6 +210,17 @@ defineTypeTest('int_unsigned', [
   [123456, 100, 96, 300, 1000]
 ]);
 
+defineTypeTest('bigint', [
+  'BIGINT UNSIGNED NULL',
+  'BIGINT SIGNED NULL'
+], [
+  [10,-10],
+  [9007199254740991, -9007199254740991],
+  ['9007199254740992', '-9007199254740992'],
+  ['19007199254740992', '-19007199254740992'],
+  ['18446744073709551615', '9223372036854775807'], // 2^64-1 unsigned max, 2^63-1 signed max
+]);
+
 defineTypeTest('double', [
   'DOUBLE NULL'
 ], [
@@ -221,10 +244,11 @@ defineTypeTest('decimal', [
   'DECIMAL(30, 10) NULL',
   'DECIMAL(30, 20) NULL'
 ], [
-  [1.0], [-1.0], [123.456], [-13.47],
-  [123456789.123], [-123456789.123], [null],
-  [1447410019.012], [123.00000123], [0.0004321]
-].map(function(x) { return [ x[0], x[0] ]; }));
+  1.0, -1.0, 123.456, -13.47,
+  123456789.123, -123456789.123, null,
+  1447410019.012, 123.00000123, 0.0004321,
+  '18446744073709551615.15'
+].map(function(x) { return [ x, x ]; }));
 
 defineTypeTest('blob', [
   'BLOB NULL',
