@@ -116,7 +116,7 @@ module.exports = {
       'DROP TABLE IF EXISTS ' + conn.escId(TEST_TABLE),
       'CREATE TABLE ' + conn.escId(TEST_TABLE) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (10)',
-    ], function(error, results) {
+    ], function(error) {
       if (error)
         return exitTest(error);
 
@@ -148,7 +148,7 @@ module.exports = {
       if (updatesSent++ < UPDATE_COUNT) {
         querySequence(conn.db, [
           'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (' + updateEvents + ')',
-        ], function(error, results) { error && exitTest(error); });
+        ], function(error) { error && exitTest(error); });
       } else {
         clearInterval(updateInterval);
       }
