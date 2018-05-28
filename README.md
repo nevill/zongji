@@ -124,8 +124,8 @@ Name   | Description
 
 ## Run Tests
 
-* Configure MySQL in `test/settings/mysql.js`
-* Run `npm test`
+* install [Docker](https://www.docker.com/community-edition#download)
+* run `docker-compose up` and then `./docker-test.sh`
 
 ## Reference
 

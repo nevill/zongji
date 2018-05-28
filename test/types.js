@@ -7,16 +7,16 @@ var strRepeat = require('./helpers/strRepeat');
 var conn = process.testZongJi || {};
 
 module.exports = {
-  setUp: function(done){
-    if(!conn.db){
+  setUp: function(done) {
+    if (!conn.db) {
       process.testZongJi = connector.call(conn, settings, done);
-    }else{
+    } else {
       conn.incCount();
       done();
     }
   },
-  tearDown: function(done){
-    if(conn){
+  tearDown: function(done) {
+    if (conn) {
       conn.eventLog.splice(0, conn.eventLog.length);
       conn.errorLog.splice(0, conn.errorLog.length);
       conn.closeIfInactive(1000);
@@ -30,29 +30,29 @@ module.exports = {
 // @param {[[any]]} testRows - 2D array of rows and fields to insert and test
 // @param {func} customTest - optional, instead of exact row check
 // @param {string} minVersion - optional, e.g. '5.6.4'
-var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
+var defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
   // Allow skipping customTest argument and passing minVersion in its place
-  if(typeof customTest === 'string'){
+  if (typeof customTest === 'string') {
     minVersion = customTest;
     customTest = undefined;
   }
 
-  module.exports[name] = function(test){
+  module.exports[name] = function(test) {
     var testTable = 'type_' + name;
-    var fieldText = fields.map(function(field, index){
+    var fieldText = fields.map(function(field, index) {
       return 'col' + index + ' ' + field;
     }).join(', ');
-    var insertColumns = fields.map(function(field, index){
+    var insertColumns = fields.map(function(field, index) {
       return 'col' + index;
     }).join(', ');
     var testQueries = [
         'DROP TABLE IF EXISTS ' + conn.escId(testTable),
         'CREATE TABLE ' + conn.escId(testTable) + ' (' + fieldText + ')',
         'SET @@session.time_zone = "+00:00"']
-      .concat(testRows.map(function(row){
+      .concat(testRows.map(function(row) {
         return 'INSERT INTO ' + conn.escId(testTable) +
           ' (' + insertColumns + ') VALUES (' +
-            row.map(function(field){
+            row.map(function(field) {
               return field === null ? 'null' : field;
             }).join(', ') + ')';
       }))
@@ -61,13 +61,13 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
         'SELECT * FROM ' + conn.escId(testTable)
       ]);
 
-    if(!minVersion || checkVersion(minVersion, conn.mysqlVersion)){
-      querySequence(conn.db, testQueries, function(error, results){
-        if(error) console.error(error);
+    if (!minVersion || checkVersion(minVersion, conn.mysqlVersion)) {
+      querySequence(conn.db, testQueries, function(error, results) {
+        if (error) console.error(error);
         var selectResult = results[results.length - 1];
         var expectedWrite = {
           _type: 'WriteRows',
-          _checkTableMap: function(test, event){
+          _checkTableMap: function(test, event) {
             var tableDetails = event.tableMap[event.tableId];
             test.strictEqual(tableDetails.parentSchema, settings.database);
             test.strictEqual(tableDetails.tableName, testTable);
@@ -81,21 +81,21 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
             schemaName: settings.database
           },
           expectedWrite
-        ], testRows.length, function(){
+        ], testRows.length, function() {
           test.equal(conn.errorLog.length, 0);
           conn.errorLog.length &&
             console.log('Type Test Error: ', name, conn.errorLog);
-          if(conn.errorLog.length){
+          if (conn.errorLog.length) {
             throw conn.errorLog[0];
           }
-          var binlogRows = conn.eventLog.reduce(function(prev, curr, index) {
-            if(curr.getTypeName() === 'WriteRows') {
+          var binlogRows = conn.eventLog.reduce(function(prev, curr) {
+            if (curr.getTypeName() === 'WriteRows') {
               prev = prev.concat(curr.rows);
             }
             return prev;
           }, []);
 
-          if(customTest) {
+          if (customTest) {
             customTest.bind(selectResult)(test, { rows: binlogRows });
           } else {
             test.deepEqual(selectResult, binlogRows);
@@ -104,27 +104,27 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion){
           test.done();
         });
       });
-    }else{
+    } else {
       // Skip running test when version doesn't meet minVersion
       test.done();
     }
-  }
+  };
 };
 
-var checkVersion = function(check, actual){
-  var parts = check.split('.').map(function(part){
+var checkVersion = function(check, actual) {
+  var parts = check.split('.').map(function(part) {
     return parseInt(part, 10);
   });
-  for(var i = 0; i < parts.length; i++){
-    if(actual[i] > parts[i]) return true;
-    else if(actual[i] < parts[i]) return false;
+  for (var i = 0; i < parts.length; i++) {
+    if (actual[i] > parts[i]) return true;
+    else if (actual[i] < parts[i]) return false;
   }
 };
 
 // Begin test case definitions
 
 defineTypeTest('set', [
-  "SET(" +
+  'SET(' +
     "'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', " +
     "'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', " +
     "'a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2', 'i2', 'j2', 'k2', " +
@@ -157,7 +157,7 @@ defineTypeTest('bit', [
 ]);
 
 defineTypeTest('enum', [
-  "ENUM(" +
+  'ENUM(' +
     "'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', " +
     "'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', " +
     "'a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2', 'i2', 'j2', 'k2', " +
@@ -209,9 +209,9 @@ defineTypeTest('float', [
   'FLOAT NULL'
 ], [
   [1.0], [-1.0], [123.456], [-13.47], [3999.12]
-], function(test, event){
+], function(test, event) {
   // Ensure sum of differences is very low
-  var diff = event.rows.reduce(function(prev, cur, index){
+  var diff = event.rows.reduce(function(prev, cur, index) {
     return prev + Math.abs(cur.col0 - this[index].col0);
   }.bind(this), 0);
   test.ok(diff < 0.001);
@@ -469,7 +469,7 @@ defineTypeTest('json', [
   ['JSON_OBJECT(\'key\', TIMESTAMP(\'2003-12-31 12:00:00\'))'],
   ['JSON_OBJECT(\'key\', TIMESTAMP(\'2003-12-31 12:00:00.123\'))'],
   ['JSON_OBJECT(\'key\', UNIX_TIMESTAMP(\'2015-11-13 10:20:19.012\'))'],
-], function(test, event){
+], function(test, event) {
   // JSON from MySQL client has different whitespace than JSON.stringify
   // Therefore, parse and perform deep equality
   event.rows.forEach(function(row, index) {
@@ -477,11 +477,11 @@ defineTypeTest('json', [
     // Perform alternative assertions for these large cases
     var expected = JSON.parse(this[index].col0);
     var actual = JSON.parse(row.col0);
-    if(this[index].col0.length > 65536) {
+    if (this[index].col0.length > 65536) {
       // Large cases are either array or object
-      if(expected instanceof Array) {
+      if (expected instanceof Array) {
         test.strictEqual(expected.length, actual.length);
-        for(var i = 0; i < expected.length; i++) {
+        for (var i = 0; i < expected.length; i++) {
           test.deepEqual(expected[i], actual[i]);
         }
       } else {
@@ -489,8 +489,8 @@ defineTypeTest('json', [
         var actualKeys = Object.keys(actual);
         test.strictEqual(expectedKeys.length, actualKeys.length);
         test.deepEqual(expectedKeys, actualKeys);
-        for(var i = 0; i < expectedKeys.length; i++) {
-          test.deepEqual(expected[expectedKeys[i]], actual[expectedKeys[i]]);
+        for (var j = 0; j < expectedKeys.length; j++) {
+          test.deepEqual(expected[expectedKeys[j]], actual[expectedKeys[j]]);
         }
       }
     } else {

@@ -5,23 +5,23 @@ var querySequence = require('./helpers/querySequence');
 var conn = process.testZongJi || {};
 
 module.exports = {
-  setUp: function(done){
-    if(!conn.db){
+  setUp: function(done) {
+    if (!conn.db) {
       process.testZongJi = connector.call(conn, settings, done);
-    }else{
+    } else {
       conn.incCount();
       done();
     }
   },
-  tearDown: function(done){
-    if(conn){
+  tearDown: function(done) {
+    if (conn) {
       conn.eventLog.splice(0, conn.eventLog.length);
       conn.errorLog.splice(0, conn.errorLog.length);
       conn.closeIfInactive(1000);
     }
     done();
   },
-  unitTestFilter: function(test){
+  unitTestFilter: function(test) {
     var origOptions = conn.zongji.options;
 
     conn.zongji.set({
@@ -74,7 +74,7 @@ module.exports = {
 
     test.done();
   },
-  integrationTestFilter: function(test){
+  integrationTestFilter: function(test) {
     // Set includeSchema to not include anything, recieve no row events
     // Ensure that filters are applied
     var origOptions = conn.zongji.options;
@@ -92,10 +92,10 @@ module.exports = {
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
       'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
       'DELETE FROM ' + conn.escId(testTable)
-    ], function(error, result){
-      if(error) console.error(error);
+    ], function(error) {
+      if (error) console.error(error);
       // Give 1 second to see if any events are emitted, they should not be!
-      setTimeout(function(){
+      setTimeout(function() {
         conn.zongji.set(origOptions);
         test.equal(conn.eventLog.length, 0);
         test.equal(conn.errorLog.length, 0);
@@ -103,7 +103,7 @@ module.exports = {
       }, 1000);
     });
   },
-  changeAfterInit: function(test){
+  changeAfterInit: function(test) {
     // Set includeSchema to skip table after the tableMap has already been
     // cached once, recieve no row events afterwards
     var origOptions = conn.zongji.options;
@@ -118,10 +118,10 @@ module.exports = {
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-    ], function(error, result){
-      if(error) console.error(error);
+    ], function(error) {
+      if (error) console.error(error);
       // Give 1 second to see if any events are emitted, they should not be!
-      setTimeout(function(){
+      setTimeout(function() {
         // Expect 2 events, TableMap and WriteRows from the INSERT query
         test.equal(conn.eventLog.length, 2);
         // Reset eventLog
@@ -134,9 +134,9 @@ module.exports = {
         querySequence(conn.db, [
           'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
           'DELETE FROM ' + conn.escId(testTable)
-        ], function(error, result){
-          if(error) console.error(error);
-          setTimeout(function(){
+        ], function(error) {
+          if (error) console.error(error);
+          setTimeout(function() {
             conn.zongji.set(origOptions);
             test.equal(conn.eventLog.length, 0);
             test.equal(conn.errorLog.length, 0);
@@ -146,4 +146,4 @@ module.exports = {
       }, 500);
     });
   }
-}
+};

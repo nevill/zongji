@@ -1,0 +1,32 @@
+---
+version: '2'
+services:
+  mysql55:
+    image: mysql:5.5
+    command: [ "--server-id=1", "--log-bin=/var/lib/mysql/mysql-bin.log", "--binlog-format=row"]
+    networks:
+      default:
+        aliases:
+          - mysql55
+    environment:
+      MYSQL_ROOT_PASSWORD: numtel
+
+  mysql56:
+    image: mysql:5.6
+    command: [ "--server-id=1", "--log-bin=/var/lib/mysql/mysql-bin.log", "--binlog-format=row"]
+    networks:
+      default:
+        aliases:
+          - mysql56
+    environment:
+      MYSQL_ROOT_PASSWORD: numtel
+
+  mysql57:
+    image: mysql:5.7
+    command: [ "--server-id=1", "--log-bin=/var/lib/mysql/mysql-bin.log", "--binlog-format=row"]
+    networks:
+      default:
+        aliases:
+          - mysql57
+    environment:
+      MYSQL_ROOT_PASSWORD: numtel

@@ -20,15 +20,15 @@ function ZongJi(dsn, options) {
 
   // one connection to send table info query
   // Check first argument against possible connection objects
-  for(var i = 0; i < alternateDsn.length; i++) {
-    if(dsn instanceof alternateDsn[i].type) {
+  for (var i = 0; i < alternateDsn.length; i++) {
+    if (dsn instanceof alternateDsn[i].type) {
       this.ctrlConnection = dsn;
       this.ctrlConnectionOwner = false;
       binlogDsn = cloneObjectSimple(alternateDsn[i].config(dsn));
     }
   }
 
-  if(!binlogDsn) {
+  if (!binlogDsn) {
     // assuming that the object passed is the connection settings
     var ctrlDsn = cloneObjectSimple(dsn);
     this.ctrlConnection = mysql.createConnection(ctrlDsn);
@@ -55,15 +55,15 @@ function ZongJi(dsn, options) {
   this._init();
 }
 
-var cloneObjectSimple = function(obj){
+var cloneObjectSimple = function(obj) {
   var out = {};
-  for(var i in obj){
-    if(obj.hasOwnProperty(i)){
+  for (var i in obj) {
+    if (obj.hasOwnProperty(i)) {
       out[i] = obj[i];
     }
   }
   return out;
-}
+};
 
 util.inherits(ZongJi, EventEmitter);
 
@@ -78,13 +78,13 @@ ZongJi.prototype._init = function() {
       name: '_isChecksumEnabled',
       callback: function(checksumEnabled) {
         self.useChecksum = checksumEnabled;
-        binlogOptions.useChecksum = checksumEnabled
+        binlogOptions.useChecksum = checksumEnabled;
       }
     },
     {
       name: '_findBinlogEnd',
-      callback: function(result){
-        if(result && self.options.startAtEnd){
+      callback: function(result) {
+        if (result && self.options.startAtEnd) {
           binlogOptions.filename = result.Log_name;
           binlogOptions.position = result.File_size;
         }
@@ -93,29 +93,30 @@ ZongJi.prototype._init = function() {
   ];
 
   var methodIndex = 0;
-  var nextMethod = function(){
+  var nextMethod = function() {
     var method = asyncMethods[methodIndex];
-    self[method.name](function(/* args */){
+    self[method.name](function(/* args */) {
       method.callback.apply(this, arguments);
       methodIndex++;
-      if(methodIndex < asyncMethods.length){
+      if (methodIndex < asyncMethods.length) {
         nextMethod();
-      }else{
+      }
+      else {
         ready();
       }
     });
   };
   nextMethod();
 
-  var ready = function(){
+  var ready = function() {
     // Run asynchronously from _init(), as serverId option set in start()
-    if(self.options.serverId !== undefined){
+    if (self.options.serverId !== undefined) {
       binlogOptions.serverId = self.options.serverId;
     }
 
-    if(('binlogName' in self.options) && ('binlogNextPos' in self.options)) {
+    if (('binlogName' in self.options) && ('binlogNextPos' in self.options)) {
       binlogOptions.filename = self.options.binlogName;
-      binlogOptions.position = self.options.binlogNextPos
+      binlogOptions.position = self.options.binlogNextPos;
     }
 
     self.binlog = generateBinlog.call(self, binlogOptions);
@@ -132,7 +133,7 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
 
   ctrlConnection.query(sql, function(err, rows) {
     if (err) {
-      if(err.toString().match(/ER_UNKNOWN_SYSTEM_VARIABLE/)){
+      if (err.toString().match(/ER_UNKNOWN_SYSTEM_VARIABLE/)) {
         // MySQL < 5.6.2 does not support @@GLOBAL.binlog_checksum
         return next(false);
       } else {
@@ -186,7 +187,7 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
 var tableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
-  "FROM information_schema.columns " + "WHERE table_schema='%s' AND table_name='%s'";
+  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s'";
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var self = this;
@@ -221,7 +222,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   });
 };
 
-ZongJi.prototype.set = function(options){
+ZongJi.prototype.set = function(options) {
   this.options = options || {};
 };
 
@@ -231,12 +232,12 @@ ZongJi.prototype.start = function(options) {
 
   var _start = function() {
     self.connection._implyConnect();
-    self.connection._protocol._enqueue(new self.binlog(function(error, event){
-      if(error) return self.emit('error', error);
+    self.connection._protocol._enqueue(new self.binlog(function(error, event) {
+      if (error) return self.emit('error', error);
       // Do not emit events that have been filtered out
-      if(event === undefined || event._filtered === true) return;
+      if (event === undefined || event._filtered === true) return;
 
-      switch(event.getTypeName()) {
+      switch (event.getTypeName()) {
         case 'TableMap':
           var tableMap = self.tableMap[event.tableId];
 
@@ -264,25 +265,26 @@ ZongJi.prototype.start = function(options) {
 
   if (this.ready) {
     _start();
-  } else {
+  }
+  else {
     this.ctrlCallbacks.push(_start);
   }
 };
 
-ZongJi.prototype.stop = function(){
+ZongJi.prototype.stop = function() {
   var self = this;
   // Binary log connection does not end with destroy()
   self.connection.destroy();
   self.ctrlConnection.query(
     'KILL ' + self.connection.threadId,
-    function(error, results){
-      if(self.ctrlConnectionOwner)
+    function() {
+      if (self.ctrlConnectionOwner)
         self.ctrlConnection.destroy();
     }
   );
 };
 
-ZongJi.prototype._skipEvent = function(eventName){
+ZongJi.prototype._skipEvent = function(eventName) {
   var include = this.options.includeEvents;
   var exclude = this.options.excludeEvents;
   return !(
@@ -292,7 +294,7 @@ ZongJi.prototype._skipEvent = function(eventName){
     (exclude instanceof Array && exclude.indexOf(eventName) === -1)));
 };
 
-ZongJi.prototype._skipSchema = function(database, table){
+ZongJi.prototype._skipSchema = function(database, table) {
   var include = this.options.includeSchema;
   var exclude = this.options.excludeSchema;
   return !(
