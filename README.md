@@ -27,7 +27,7 @@ For a complete implementation see [`example.js`](example.js)...
 
 ## Installation
 
-* Requires Node.js v0.10+
+* Requires Node.js v4+
 
   ```bash
   $ npm install zongji
