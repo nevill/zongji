@@ -2,7 +2,7 @@
 // Database will be recreated!
 module.exports = {
   connection: {
-    host     : 'localhost',
+    host     : process.env.MYSQL_HOST || 'localhost',
     user     : 'root',
     password : 'numtel',
     charset  : 'utf8mb4_unicode_ci',
