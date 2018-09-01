@@ -21,7 +21,7 @@ function ZongJi(dsn, options) {
   // one connection to send table info query
   // Check first argument against possible connection objects
   for (var i = 0; i < alternateDsn.length; i++) {
-    if (dsn instanceof alternateDsn[i].type) {
+    if (dsn.constructor.name === alternateDsn[i].type.name) {
       this.ctrlConnection = dsn;
       this.ctrlConnectionOwner = false;
       binlogDsn = cloneObjectSimple(alternateDsn[i].config(dsn));
