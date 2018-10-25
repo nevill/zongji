@@ -223,7 +223,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
 };
 
 ZongJi.prototype.set = function(options) {
-  this.options = options || {};
+  this.options = Object.assign(this.options || {}, options || {});;
 };
 
 ZongJi.prototype.start = function(options) {
