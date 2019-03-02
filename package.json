@@ -34,6 +34,6 @@
   },
   "dependencies": {
     "iconv-lite": "^0.4.13",
-    "mysql": "2.15.0"
+    "mysql": "2.16.0"
   }
 }
