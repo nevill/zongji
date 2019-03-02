@@ -17,7 +17,7 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
     ];
 
     zongji.on('error', function(error) {
-      if(!errorTrapped && ACCEPTABLE_ERRORS.indexOf(error.code) > -1) {
+      if (!errorTrapped && ACCEPTABLE_ERRORS.indexOf(error.code) > -1) {
         errorTrapped = true;
         killThread(cleanupKillIdFun);
         test.done();
@@ -38,7 +38,7 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
 
     function isZongjiReady() {
       setTimeout(function() {
-        if(zongji.ready) {
+        if (zongji.ready) {
           killThread(readyKillIdFun);
         } else {
           isZongjiReady();
@@ -47,20 +47,20 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
     }
     isZongjiReady();
 
-  }
+  };
 }
 
 module.exports = {
-  setUp: function(done){
-    if(!conn.db){
+  setUp: function(done) {
+    if (!conn.db) {
       process.testZongJi = connector.call(conn, settings, done);
-    }else{
+    } else {
       conn.incCount();
       done();
     }
   },
-  tearDown: function(done){
-    if(conn){
+  tearDown: function(done) {
+    if (conn) {
       conn.eventLog.splice(0, conn.eventLog.length);
       conn.errorLog.splice(0, conn.errorLog.length);
       conn.closeIfInactive(1000);
@@ -68,11 +68,11 @@ module.exports = {
     done();
   },
   binlogConnection_disconnect: generateDisconnectionCase(
-    function onReady(zongji) { return zongji.connection.threadId },
-    function onCleanup(zongji) { return zongji.ctrlConnection.threadId }),
+    function onReady(zongji) { return zongji.connection.threadId; },
+    function onCleanup(zongji) { return zongji.ctrlConnection.threadId; }),
   ctrlConnection_disconnect: generateDisconnectionCase(
-    function onReady(zongji) { return zongji.ctrlConnection.threadId },
-    function onCleanup(zongji) { return zongji.connection.threadId }),
+    function onReady(zongji) { return zongji.ctrlConnection.threadId; },
+    function onCleanup(zongji) { return zongji.connection.threadId; }),
 
   reconnect_at_pos: function(test) {
     // Test that binlog events come through in correct sequence after
@@ -98,10 +98,10 @@ module.exports = {
         includeEvents: ['rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows']
       }));
       zongji.on('binlog', function(event) {
-        if(event.getTypeName() === 'WriteRows') {
-          if(updateEvents++ !== event.rows[0].col) {
+        if (event.getTypeName() === 'WriteRows') {
+          if (updateEvents++ !== event.rows[0].col) {
             exitTest('Events in the wrong order');
-          } else if(updateEvents === UPDATE_COUNT) {
+          } else if (updateEvents === UPDATE_COUNT) {
             exitTest();
           }
         }
@@ -116,8 +116,8 @@ module.exports = {
       'DROP TABLE IF EXISTS ' + conn.escId(TEST_TABLE),
       'CREATE TABLE ' + conn.escId(TEST_TABLE) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (10)',
-    ], function(error, results) {
-      if(error)
+    ], function(error) {
+      if (error)
         return exitTest(error);
 
       firstZongJi = startNewZongJi({
@@ -145,10 +145,10 @@ module.exports = {
     }
 
     var updateInterval = setInterval(function() {
-      if(updatesSent++ < UPDATE_COUNT) {
+      if (updatesSent++ < UPDATE_COUNT) {
         querySequence(conn.db, [
           'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (' + updateEvents + ')',
-        ], function(error, results) { error && exitTest(error) });
+        ], function(error) { error && exitTest(error); });
       } else {
         clearInterval(updateInterval);
       }
@@ -159,8 +159,8 @@ module.exports = {
   invalid_host: function(test) {
     var zongji = new ZongJi({
       host: 'wronghost',
-      user: "wronguser",
-      password: "wrongpass"
+      user: 'wronguser',
+      password: 'wrongpass'
     });
     zongji.on('error', function(error) {
       test.ok([ 'ENOTFOUND', 'ETIMEDOUT' ].indexOf(error.code) !== -1);
@@ -172,4 +172,4 @@ module.exports = {
     test.equal(getEventClass(490).name, 'Unknown');
     test.done();
   }
-}
+};

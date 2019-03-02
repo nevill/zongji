@@ -11,30 +11,30 @@ var MAX_WAIT = 3000;
 // @param {number} multiplier - Number of times to expect expected events
 // @param {function} callback - Call when done, no arguments (optional)
 // @param waitIndex - Do not specify, used internally
-function expectEvents(test, events, expected, multiplier, callback, waitIndex){
-  if(events.length < (expected.length * multiplier) && !(waitIndex > 10)){
+function expectEvents(test, events, expected, multiplier, callback, waitIndex) {
+  if (events.length < (expected.length * multiplier) && !(waitIndex > 10)) {
     // Wait for events to appear
-    setTimeout(function(){
+    setTimeout(function() {
       expectEvents(test, events, expected, multiplier, callback, (waitIndex || 0) + 1);
     }, MAX_WAIT / 10);
-  }else{
+  } else {
     test.strictEqual(events.length, expected.length * multiplier);
-    events.forEach(function(event, index){
+    events.forEach(function(event, index) {
       var exp = expected[index % expected.length];
-      for(var i in exp){
-        if(exp.hasOwnProperty(i)){
-          if(i === '_type'){
+      for (var i in exp) {
+        if (exp.hasOwnProperty(i)) {
+          if (i === '_type') {
             test.strictEqual(exp[i], event.getTypeName());
-          }else if(String(i).substr(0, 1) === '_'){
+          } else if (String(i).substr(0, 1) === '_') {
             exp[i](test, event);
-          }else{
+          } else {
             test.deepEqual(exp[i], event[i]);
           }
         }
       }
     });
-    if(typeof callback === 'function') callback();
+    if (typeof callback === 'function') callback();
   }
-};
+}
 
 module.exports = expectEvents;

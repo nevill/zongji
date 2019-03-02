@@ -2,15 +2,13 @@ language: node_js
 sudo: required
 dist: trusty
 node_js:
-  - "0.10"
-  - "4.1"
+  - "4"
+  - "8"
 services:
   - mysql
   - docker
-before_install:
-  - docker pull mysql
-  - docker pull mtirsel/mysql-5.1
-  - docker run -p 3351:3306 --name mysql-51 -e MYSQL_ROOT_PASSWORD=numtel -d mtirsel/mysql-5.1 mysqld --datadir=/var/lib/mysql --user=mysql --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog-format=row
+before_script:
+  - npm run lint
   - docker run -p 3355:3306 --name mysql-55 -e MYSQL_ROOT_PASSWORD=numtel -d mysql:5.5 --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog-format=row
   - docker run -p 3356:3306 --name mysql-56 -e MYSQL_ROOT_PASSWORD=numtel -d mysql:5.6 --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog-format=row
   - docker run -p 3357:3306 --name mysql-57 -e MYSQL_ROOT_PASSWORD=numtel -d mysql:5.7 --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog-format=row
