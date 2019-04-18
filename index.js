@@ -187,7 +187,8 @@ ZongJi.prototype._executeCtrlCallbacks = function() {
 var tableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
-  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s'";
+  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s' "+
+  'ORDER BY ORDINAL_POSITION';
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   var self = this;
