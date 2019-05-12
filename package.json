@@ -28,12 +28,15 @@
     "url": "https://github.com/nevill/zongji/issues"
   },
   "homepage": "https://github.com/nevill/zongji",
+  "engines": {
+    "node": ">= 6.0"
+  },
   "devDependencies": {
-    "eslint": "2.13.1",
-    "nodeunit": "~0.9.1"
+    "eslint": "5.16.0",
+    "nodeunit": "0.11.3"
   },
   "dependencies": {
-    "iconv-lite": "^0.4.13",
-    "mysql": "2.15.0"
+    "iconv-lite": "0.4.24",
+    "mysql": "2.17.1"
   }
 }
