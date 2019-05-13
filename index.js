@@ -69,9 +69,7 @@ util.inherits(ZongJi, EventEmitter);
 
 ZongJi.prototype._init = function() {
   var self = this;
-  var binlogOptions = {
-    tableMap: self.tableMap,
-  };
+  var binlogOptions = {};
 
   var asyncMethods = [
     {
@@ -119,7 +117,7 @@ ZongJi.prototype._init = function() {
       binlogOptions.position = self.options.binlogNextPos;
     }
 
-    self.binlog = generateBinlog.call(self, binlogOptions);
+    self.binlog = generateBinlog(self, binlogOptions);
     self.ready = true;
     self._executeCtrlCallbacks();
   };
