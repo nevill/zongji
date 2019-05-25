@@ -76,7 +76,7 @@ module.exports = {
 
   reconnect_at_pos: function(test) {
     // Test that binlog events come through in correct sequence after
-    // reconnect using the binlogName and binlogNextPos properties
+    // reconnect using the filename and position properties
     var NEW_INST_TIMEOUT = 1000;
     var UPDATE_INTERVAL = 300;
     var UPDATE_COUNT = 5;
@@ -94,7 +94,7 @@ module.exports = {
         opts[setKey] = options[setKey];
         return opts;
       }, {
-        // Must include rotate events for binlogName and binlogNextPos properties
+        // Must include rotate events for filename and position properties
         includeEvents: ['rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows']
       }));
       zongji.on('binlog', function(event) {
@@ -130,8 +130,8 @@ module.exports = {
         firstZongJi.stop();
         secondZongJi = startNewZongJi({
           serverId: 16,
-          binlogName: firstZongJi.binlogName,
-          binlogNextPos: firstZongJi.binlogNextPos
+          filename: firstZongJi.get('filename'),
+          position: firstZongJi.get('position'),
         });
 
       }, NEW_INST_TIMEOUT);

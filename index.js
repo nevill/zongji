@@ -22,9 +22,6 @@ function ZongJi(dsn, options) {
   this.tableMap = {};
   this.ready = false;
   this.useChecksum = false;
-  // Include 'rotate' events to keep these properties updated
-  this.binlogName = null;
-  this.binlogNextPos = null;
 
   this._establishConnection(dsn);
   this._init();
@@ -66,20 +63,9 @@ ZongJi.prototype._establishConnection = function(dsn) {
 };
 
 ZongJi.prototype._init = function() {
-  let binlogOptions = {};
 
   let ready = () => {
-    // Run asynchronously from _init(), as serverId option set in start()
-    if (this.options.serverId !== undefined) {
-      binlogOptions.serverId = this.options.serverId;
-    }
-
-    if (('binlogName' in this.options) && ('binlogNextPos' in this.options)) {
-      binlogOptions.filename = this.options.binlogName;
-      binlogOptions.position = this.options.binlogNextPos;
-    }
-
-    this.BinlogClass = initBinlogClass(this, binlogOptions);
+    this.BinlogClass = initBinlogClass(this);
     this.ready = true;
     this._executeCtrlCallbacks();
   };
@@ -91,7 +77,6 @@ ZongJi.prototype._init = function() {
       }
       else {
         this.useChecksum = checksumEnabled;
-        binlogOptions.useChecksum = checksumEnabled;
         resolve();
       }
     });
@@ -104,8 +89,10 @@ ZongJi.prototype._init = function() {
       }
 
       if (result && this.options.startAtEnd) {
-        binlogOptions.filename = result.Log_name;
-        binlogOptions.position = result.File_size;
+        Object.assign(this.options, {
+          filename: result.Log_name,
+          position: result.File_size,
+        });
       }
 
       resolve();
@@ -218,8 +205,43 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   });
 };
 
-ZongJi.prototype.set = function(options) {
-  this.options = options || {};
+const AVAILABLE_OPTIONS = [
+  'includeEvents',
+  'excludeEvents',
+  'includeSchema',
+  'excludeSchema',
+  'serverId',
+  'filename',
+  'position',
+  'startAtEnd',
+];
+
+ZongJi.prototype.set = function(options = {}) {
+  this.options = {};
+
+  for (const key of AVAILABLE_OPTIONS) {
+    if (options[key]) {
+      this.options[key] = options[key];
+    }
+  }
+};
+
+ZongJi.prototype.get = function(name) {
+  let result;
+  if (typeof name === 'string') {
+    result = this.options[name];
+  }
+  else if (Array.isArray(name)) {
+    result = name.reduce(
+      (acc, cur) => {
+        acc[cur] = this.options[cur];
+        return acc;
+      },
+      {}
+    );
+  }
+
+  return result;
 };
 
 ZongJi.prototype.start = function(options) {
@@ -248,12 +270,12 @@ ZongJi.prototype.start = function(options) {
           }
           break;
         case 'Rotate':
-          if (self.binlogName !== event.binlogName) {
-            self.binlogName = event.binlogName;
+          if (self.options.filename !== event.binlogName) {
+            self.options.filename = event.binlogName;
           }
           break;
       }
-      self.binlogNextPos = event.nextPosition;
+      self.options.position = event.nextPosition;
       self.emit('binlog', event);
     }));
   };
@@ -280,8 +302,8 @@ ZongJi.prototype.stop = function() {
 };
 
 ZongJi.prototype._skipEvent = function(eventName) {
-  var include = this.options.includeEvents;
-  var exclude = this.options.excludeEvents;
+  var include = this.get('includeEvents');
+  var exclude = this.get('excludeEvents');
   return !(
    (include === undefined ||
     (include instanceof Array && include.indexOf(eventName) !== -1)) &&
@@ -290,8 +312,9 @@ ZongJi.prototype._skipEvent = function(eventName) {
 };
 
 ZongJi.prototype._skipSchema = function(database, table) {
-  var include = this.options.includeSchema;
-  var exclude = this.options.excludeSchema;
+  var include = this.get('includeSchema');
+  var exclude = this.get('excludeSchema');
+
   return !(
    (include === undefined ||
     (database !== undefined && (database in include) &&
