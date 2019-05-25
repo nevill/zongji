@@ -84,6 +84,9 @@ module.exports = {
 
     var updatesSent = 0, updateEvents = 0;
 
+    var firstZongJi;
+    var secondZongJi;
+
     // Create a new ZongJi instance using some default options that will count
     // using the values in the new rows inserted
     function startNewZongJi(options) {
@@ -99,9 +102,13 @@ module.exports = {
       }));
       zongji.on('binlog', function(event) {
         if (event.getTypeName() === 'WriteRows') {
-          if (updateEvents++ !== event.rows[0].col) {
+          if (updateEvents !== event.rows[0].col) {
             exitTest('Events in the wrong order');
-          } else if (updateEvents === UPDATE_COUNT) {
+          }
+
+          updateEvents++;
+
+          if (updateEvents === UPDATE_COUNT) {
             exitTest();
           }
         }
@@ -109,8 +116,12 @@ module.exports = {
       return zongji;
     }
 
-    var firstZongJi;
-    var secondZongJi;
+    function exitTest(error) {
+      test.ifError(error);
+      firstZongJi.stop && firstZongJi.stop();
+      secondZongJi.stop && secondZongJi.stop();
+      test.done();
+    }
 
     querySequence(conn.db, [
       'DROP TABLE IF EXISTS ' + conn.escId(TEST_TABLE),
@@ -125,6 +136,17 @@ module.exports = {
         startAtEnd: true
       });
 
+      var updateInterval = setInterval(function() {
+        if (updatesSent < UPDATE_COUNT) {
+          updatesSent++;
+          querySequence(conn.db, [
+            'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (' + updateEvents + ')',
+          ], function(error) { error && exitTest(error); });
+        } else {
+          clearInterval(updateInterval);
+        }
+      }, UPDATE_INTERVAL);
+
       setTimeout(function() {
         // Start new ZongJi instance where the previous was when stopped
         firstZongJi.stop();
@@ -133,27 +155,8 @@ module.exports = {
           filename: firstZongJi.get('filename'),
           position: firstZongJi.get('position'),
         });
-
       }, NEW_INST_TIMEOUT);
     });
-
-    function exitTest(error) {
-      test.ifError(error);
-      firstZongJi.stop && firstZongJi.stop();
-      secondZongJi.stop && secondZongJi.stop();
-      test.done();
-    }
-
-    var updateInterval = setInterval(function() {
-      if (updatesSent++ < UPDATE_COUNT) {
-        querySequence(conn.db, [
-          'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (' + updateEvents + ')',
-        ], function(error) { error && exitTest(error); });
-      } else {
-        clearInterval(updateInterval);
-      }
-    }, UPDATE_INTERVAL);
-
   },
 
   invalid_host: function(test) {
