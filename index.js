@@ -67,6 +67,7 @@ ZongJi.prototype._init = function() {
   let ready = () => {
     this.BinlogClass = initBinlogClass(this);
     this.ready = true;
+    this.emit('ready');
     this._executeCtrlCallbacks();
   };
 
