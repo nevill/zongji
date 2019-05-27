@@ -3,9 +3,16 @@ A MySQL binlog listener running on Node.js.
 
 ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
-This package is a "pure JS" implementation based on [`node-mysql`](https://github.com/felixge/node-mysql). Since v0.2.0, The native part (which was written in C++) has been dropped.
+This package is a "pure JS" implementation based on [`mysql`](https://github.com/mysqljs/mysql). Since v0.2.0, The native part (which was written in C++) has been dropped.
 
 This package has been tested to work in MySQL 5.5, 5.6, and 5.7.
+
+
+# Upcoming Release
+
+v0.4.7 is the last release which supports Node.js v4.x.
+
+The next release will be v0.5, only supports Node.js from v6.x. It uses a lot Ecmascript 6 features.
 
 ## Quick Start
 
@@ -27,7 +34,7 @@ For a complete implementation see [`example.js`](example.js)...
 
 ## Installation
 
-* Requires Node.js v4+
+* Requires Node.js v6+
 
   ```bash
   $ npm install zongji
@@ -59,12 +66,12 @@ For a complete implementation see [`example.js`](example.js)...
 
 The `ZongJi` constructor accepts one argument of either:
 
-* An object containing MySQL connection details in the same format as used by `node-mysql`
-* Or, a `node-mysql` `Connection` or `Pool` object that will be used for querying column information.
+* An object containing MySQL connection details in the same format as used by [package mysql](https://npm.im/mysql)
+* Or, a [mysql](https://npm.im/mysql) `Connection` or `Pool` object that will be used for querying column information.
 
 If a `Connection` or `Pool` object is passed to the constructor, it will not be destroyed/ended by Zongji's `stop()` method.
 
-If there is a `dateStrings` `node-mysql` configuration option in the connection details or connection, `ZongJi` will follow it.
+If there is a `dateStrings` `mysql` configuration option in the connection details or connection, `ZongJi` will follow it.
 
 Each instance includes the following methods:
 
@@ -117,7 +124,7 @@ Name   | Description
 
 ## Important Notes
 
-* :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
+* :star2: [All types allowed by `mysql`](https://github.com/mysqljs/mysql#type-casting) are supported by this package.
 * :speak_no_evil: While 64-bit integers in MySQL (`BIGINT` type) allow values in the range of 2<sup>64</sup> (± ½ × 2<sup>64</sup> for signed values), Javascript's internal storage of numbers limits values to 2<sup>53</sup>, making the allowed range of `BIGINT` fields only `-9007199254740992` to `9007199254740992`. Unsigned 64-bit integers must also not exceed `9007199254740992`.
 * :point_right: `TRUNCATE` statement does not cause corresponding `DeleteRows` event. Use unqualified `DELETE FROM` for same effect.
 * When using fractional seconds with `DATETIME` and `TIMESTAMP` data types in MySQL > 5.6.4, only millisecond precision is available due to the limit of Javascript's `Date` object.
@@ -131,7 +138,7 @@ Name   | Description
 
 I learnt many things from following resources while making ZongJi.
 
-* https://github.com/felixge/node-mysql
+* https://github.com/mysqljs/mysql
 * https://github.com/felixge/faster-than-c/
 * http://intuitive-search.blogspot.co.uk/2011/07/binary-log-api-and-replication-listener.html
 * https://github.com/Sannis/node-mysql-libmysqlclient
