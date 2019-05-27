@@ -77,38 +77,38 @@ module.exports = {
   reconnect_at_pos: function(test) {
     // Test that binlog events come through in correct sequence after
     // reconnect using the filename and position properties
-    var NEW_INST_TIMEOUT = 1000;
-    var UPDATE_INTERVAL = 300;
-    var UPDATE_COUNT = 5;
-    var TEST_TABLE = 'reconnect_at_pos';
+    const NEW_INST_TIMEOUT = 1000;
+    const UPDATE_INTERVAL = 300;
+    const UPDATE_COUNT = 5;
+    const TEST_TABLE = 'reconnect_at_pos';
 
-    var updatesSent = 0, updateEvents = 0;
+    let first;
+    let second;
 
-    var firstZongJi;
-    var secondZongJi;
+    let result = [];
 
     // Create a new ZongJi instance using some default options that will count
     // using the values in the new rows inserted
     function startNewZongJi(options) {
-      var zongji = new ZongJi(settings.connection);
+      let zongji = new ZongJi(settings.connection);
 
-      zongji.start(Object.keys(options || {}).reduce(function(opts, setKey) {
-        // Object.assign-like to support node 0.10
-        opts[setKey] = options[setKey];
-        return opts;
-      }, {
-        // Must include rotate events for filename and position properties
-        includeEvents: ['rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows']
-      }));
+      zongji.start(
+        Object.assign(
+          {
+            // Must include rotate events for filename and position properties
+            includeEvents: [
+              'rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows'
+            ]
+          },
+          options
+        )
+      );
+
       zongji.on('binlog', function(event) {
         if (event.getTypeName() === 'WriteRows') {
-          if (updateEvents !== event.rows[0].col) {
-            exitTest('Events in the wrong order');
-          }
+          result.push(event.rows[0].col);
 
-          updateEvents++;
-
-          if (updateEvents === UPDATE_COUNT) {
+          if (result.length === UPDATE_COUNT) {
             exitTest();
           }
         }
@@ -116,11 +116,51 @@ module.exports = {
       return zongji;
     }
 
-    function exitTest(error) {
-      test.ifError(error);
-      firstZongJi.stop && firstZongJi.stop();
-      secondZongJi.stop && secondZongJi.stop();
+    function exitTest() {
+      first.stop && first.stop();
+      second.stop && second.stop();
+
+      test.deepEqual(
+        result,
+        Array.from({length: UPDATE_COUNT}, (_, i) => i)
+      );
       test.done();
+    }
+
+    function startPeriodicallyWriting() {
+      const INSERT_QUERY = 'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES ';
+      let sequences = Array.from(
+        {length: UPDATE_COUNT},
+        (_, i) => INSERT_QUERY + `(${i})`
+      );
+      let updateInterval;
+
+      let doInsert = () => {
+        querySequence(conn.db, [sequences.shift()], error => {
+          if (error) {
+            clearInterval(updateInterval);
+            test.done(error);
+          }
+        });
+
+        if (sequences.length === 0) {
+          clearInterval(updateInterval);
+        }
+      };
+
+      updateInterval = setInterval(doInsert, UPDATE_INTERVAL);
+    }
+
+    function killFirstWhenTimeout() {
+      setTimeout(function() {
+        // Start new ZongJi instance where the previous was when stopped
+        first.stop();
+        second = startNewZongJi({
+          serverId: 16,
+          filename: first.get('filename'),
+          position: first.get('position'),
+        });
+      }, NEW_INST_TIMEOUT);
     }
 
     querySequence(conn.db, [
@@ -128,34 +168,19 @@ module.exports = {
       'CREATE TABLE ' + conn.escId(TEST_TABLE) + ' (col INT UNSIGNED)',
       'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (10)',
     ], function(error) {
-      if (error)
-        return exitTest(error);
+      if (error) {
+        return test.done(error);
+      }
 
-      firstZongJi = startNewZongJi({
+      first = startNewZongJi({
         serverId: 14,
         startAtEnd: true
       });
 
-      var updateInterval = setInterval(function() {
-        if (updatesSent < UPDATE_COUNT) {
-          updatesSent++;
-          querySequence(conn.db, [
-            'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (' + updateEvents + ')',
-          ], function(error) { error && exitTest(error); });
-        } else {
-          clearInterval(updateInterval);
-        }
-      }, UPDATE_INTERVAL);
-
-      setTimeout(function() {
-        // Start new ZongJi instance where the previous was when stopped
-        firstZongJi.stop();
-        secondZongJi = startNewZongJi({
-          serverId: 16,
-          filename: firstZongJi.get('filename'),
-          position: firstZongJi.get('position'),
-        });
-      }, NEW_INST_TIMEOUT);
+      first.on('ready', () => {
+        startPeriodicallyWriting();
+        killFirstWhenTimeout();
+      });
     });
   },
 
