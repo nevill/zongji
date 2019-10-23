@@ -11,6 +11,7 @@
     "no-console": "off",
     "no-trailing-spaces": ["error", { "skipBlankLines": true }],
     "no-unused-vars": "warn",
+    "no-var": "warn",
     "quotes": ["warn", "single", "avoid-escape"],
     "semi": ["error", "always"],
     "space-before-blocks": "error"

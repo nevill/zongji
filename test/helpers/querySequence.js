@@ -9,8 +9,8 @@ module.exports = function(connection, debug, queries, callback) {
     queries = debug;
     debug = false;
   }
-  var results = [];
-  var sequence = queries.map(function(queryStr, index) {
+  const results = [];
+  const sequence = queries.map(function(queryStr, index) {
     return function() {
       debug && console.log('Query Sequence', index, queryStr);
       connection.query(queryStr, function(err, rows) {

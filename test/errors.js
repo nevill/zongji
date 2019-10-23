@@ -1,16 +1,16 @@
-var ZongJi = require('./../');
-var getEventClass = require('./../lib/code_map').getEventClass;
-var settings = require('./settings/mysql');
-var connector =  require('./helpers/connector');
-var querySequence = require('./helpers/querySequence');
+const ZongJi = require('./../');
+const getEventClass = require('./../lib/code_map').getEventClass;
+const settings = require('./settings/mysql');
+const connector =  require('./helpers/connector');
+const querySequence = require('./helpers/querySequence');
 
-var conn = process.testZongJi || {};
+const conn = process.testZongJi || {};
 
 function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
   return function(test) {
-    var zongji = new ZongJi(settings.connection);
-    var errorTrapped = false;
-    var ACCEPTABLE_ERRORS = [
+    const zongji = new ZongJi(settings.connection);
+    let errorTrapped = false;
+    const ACCEPTABLE_ERRORS = [
       'PROTOCOL_CONNECTION_LOST',
       // MySQL 5.1 emits a packet sequence error when the binlog disconnected
       'PROTOCOL_INCORRECT_PACKET_SEQUENCE'
@@ -31,7 +31,7 @@ function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
     });
 
     function killThread(argFun) {
-      var threadId = argFun(zongji);
+      const threadId = argFun(zongji);
       test.ok(!isNaN(threadId));
       conn.db.query('KILL ' + threadId);
     }
@@ -185,7 +185,7 @@ module.exports = {
   },
 
   invalid_host: function(test) {
-    var zongji = new ZongJi({
+    const zongji = new ZongJi({
       host: 'wronghost',
       user: 'wronguser',
       password: 'wrongpass'

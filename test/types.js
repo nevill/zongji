@@ -1,10 +1,10 @@
-var settings = require('./settings/mysql');
-var connector =  require('./helpers/connector');
-var querySequence = require('./helpers/querySequence');
-var expectEvents = require('./helpers/expectEvents');
-var strRepeat = require('./helpers/strRepeat');
+const settings = require('./settings/mysql');
+const connector =  require('./helpers/connector');
+const querySequence = require('./helpers/querySequence');
+const expectEvents = require('./helpers/expectEvents');
+const strRepeat = require('./helpers/strRepeat');
 
-var conn = process.testZongJi || {};
+const conn = process.testZongJi || {};
 
 module.exports = {
   setUp: function(done) {
@@ -30,7 +30,7 @@ module.exports = {
 // @param {[[any]]} testRows - 2D array of rows and fields to insert and test
 // @param {func} customTest - optional, instead of exact row check
 // @param {string} minVersion - optional, e.g. '5.6.4'
-var defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
+const defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
   // Allow skipping customTest argument and passing minVersion in its place
   if (typeof customTest === 'string') {
     minVersion = customTest;
@@ -38,14 +38,14 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
   }
 
   module.exports[name] = function(test) {
-    var testTable = 'type_' + name;
-    var fieldText = fields.map(function(field, index) {
+    const testTable = 'type_' + name;
+    const fieldText = fields.map(function(field, index) {
       return 'col' + index + ' ' + field;
     }).join(', ');
-    var insertColumns = fields.map(function(field, index) {
+    const insertColumns = fields.map(function(field, index) {
       return 'col' + index;
     }).join(', ');
-    var testQueries = [
+    const testQueries = [
         'DROP TABLE IF EXISTS ' + conn.escId(testTable),
         'CREATE TABLE ' + conn.escId(testTable) + ' (' + fieldText + ')',
         'SET @@session.time_zone = "+00:00"']
@@ -64,11 +64,11 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
     if (!minVersion || checkVersion(minVersion, conn.mysqlVersion)) {
       querySequence(conn.db, testQueries, function(error, results) {
         if (error) console.error(error);
-        var selectResult = results[results.length - 1];
-        var expectedWrite = {
+        const selectResult = results[results.length - 1];
+        const expectedWrite = {
           _type: 'WriteRows',
           _checkTableMap: function(test, event) {
-            var tableDetails = event.tableMap[event.tableId];
+            const tableDetails = event.tableMap[event.tableId];
             test.strictEqual(tableDetails.parentSchema, settings.database);
             test.strictEqual(tableDetails.tableName, testTable);
           }
@@ -88,7 +88,7 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
           if (conn.errorLog.length) {
             throw conn.errorLog[0];
           }
-          var binlogRows = conn.eventLog.reduce(function(prev, curr) {
+          const binlogRows = conn.eventLog.reduce(function(prev, curr) {
             if (curr.getTypeName() === 'WriteRows') {
               prev = prev.concat(curr.rows);
             }
@@ -111,11 +111,11 @@ var defineTypeTest = function(name, fields, testRows, customTest, minVersion) {
   };
 };
 
-var checkVersion = function(check, actual) {
-  var parts = check.split('.').map(function(part) {
+const checkVersion = function(check, actual) {
+  const parts = check.split('.').map(function(part) {
     return parseInt(part, 10);
   });
-  for (var i = 0; i < parts.length; i++) {
+  for (let i = 0; i < parts.length; i++) {
     if (actual[i] > parts[i]) return true;
     else if (actual[i] < parts[i]) return false;
   }
@@ -211,7 +211,7 @@ defineTypeTest('float', [
   [1.0], [-1.0], [123.456], [-13.47], [3999.12]
 ], function(test, event) {
   // Ensure sum of differences is very low
-  var diff = event.rows.reduce(function(prev, cur, index) {
+  const diff = event.rows.reduce(function(prev, cur, index) {
     return prev + Math.abs(cur.col0 - this[index].col0);
   }.bind(this), 0);
   test.ok(diff < 0.001);
@@ -475,21 +475,21 @@ defineTypeTest('json', [
   event.rows.forEach(function(row, index) {
     // test.deepEqual does not work when comparison objects exceed 65536 bytes
     // Perform alternative assertions for these large cases
-    var expected = JSON.parse(this[index].col0);
-    var actual = JSON.parse(row.col0);
+    const expected = JSON.parse(this[index].col0);
+    const actual = JSON.parse(row.col0);
     if (this[index].col0.length > 65536) {
       // Large cases are either array or object
       if (expected instanceof Array) {
         test.strictEqual(expected.length, actual.length);
-        for (var i = 0; i < expected.length; i++) {
+        for (let i = 0; i < expected.length; i++) {
           test.deepEqual(expected[i], actual[i]);
         }
       } else {
-        var expectedKeys = Object.keys(expected);
-        var actualKeys = Object.keys(actual);
+        const expectedKeys = Object.keys(expected);
+        const actualKeys = Object.keys(actual);
         test.strictEqual(expectedKeys.length, actualKeys.length);
         test.deepEqual(expectedKeys, actualKeys);
-        for (var j = 0; j < expectedKeys.length; j++) {
+        for (let j = 0; j < expectedKeys.length; j++) {
           test.deepEqual(expected[expectedKeys[j]], actual[expectedKeys[j]]);
         }
       }

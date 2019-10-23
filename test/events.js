@@ -1,22 +1,22 @@
-var mysql = require('mysql');
-var settings = require('./settings/mysql');
-var connector =  require('./helpers/connector');
-var querySequence = require('./helpers/querySequence');
-var expectEvents = require('./helpers/expectEvents');
-var ZongJi = require('./../');
+const mysql = require('mysql');
+const settings = require('./settings/mysql');
+const connector =  require('./helpers/connector');
+const querySequence = require('./helpers/querySequence');
+const expectEvents = require('./helpers/expectEvents');
+const ZongJi = require('./../');
 
-var conn = process.testZongJi || {};
+const conn = process.testZongJi || {};
 
-var checkTableMatches = function(tableName) {
+const checkTableMatches = function(tableName) {
   return function(test, event) {
-    var tableDetails = event.tableMap[event.tableId];
+    const tableDetails = event.tableMap[event.tableId];
     test.strictEqual(tableDetails.parentSchema, settings.database);
     test.strictEqual(tableDetails.tableName, tableName);
   };
 };
 
 // For use with expectEvents()
-var tableMapEvent = function(tableName) {
+const tableMapEvent = function(tableName) {
   return {
     _type: 'TableMap',
     tableName: tableName,
@@ -42,7 +42,7 @@ module.exports = {
     done();
   },
   testStartAtEnd: function(test) {
-    var testTable = 'start_at_end_test';
+    const testTable = 'start_at_end_test';
     querySequence(conn.db, [
       'FLUSH LOGS', // Ensure Zongji perserveres through a rotation event
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
@@ -51,8 +51,8 @@ module.exports = {
     ], function(error) {
       if (error) console.error(error);
       // Start second ZongJi instance
-      var zongji = new ZongJi(settings.connection);
-      var events = [];
+      const zongji = new ZongJi(settings.connection);
+      const events = [];
 
       zongji.on('binlog', function(event) {
         events.push(event);
@@ -84,8 +84,8 @@ module.exports = {
     });
   },
   testPassedConnectionObj: function(test) {
-    var testTable = 'conn_obj_test';
-    var connObjs = [
+    const testTable = 'conn_obj_test';
+    const connObjs = [
       { create: mysql.createConnection, end: function(obj) { obj.destroy(); } },
       { create: mysql.createPool, end: function(obj) { obj.end(); } }
     ];
@@ -97,9 +97,9 @@ module.exports = {
       if (error) console.error(error);
       // Start second ZongJi instance
       connObjs.forEach(function(connObj, index) {
-        var ctrlConn = connObj.create(settings.connection);
-        var zongji = new ZongJi(ctrlConn);
-        var events = [];
+        const ctrlConn = connObj.create(settings.connection);
+        const zongji = new ZongJi(ctrlConn);
+        const events = [];
 
         zongji.on('binlog', function(event) {
           events.push(event);
@@ -122,7 +122,7 @@ module.exports = {
         ], function(error) {
           if (error) console.error(error);
           // Should only have 2 events since ZongJi start
-          var finishedCount = 0;
+          let finishedCount = 0;
           connObjs.forEach(function(connObj) {
             expectEvents(test, connObj.events, [
               { /* do not bother testing anything on first event */ },
@@ -140,7 +140,7 @@ module.exports = {
     });
   },
   testWriteUpdateDelete: function(test) {
-    var testTable = 'events_test';
+    const testTable = 'events_test';
     querySequence(conn.db, [
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
@@ -175,7 +175,7 @@ module.exports = {
     });
   },
   testManyColumns: function(test) {
-    var testTable = '33_columns';
+    const testTable = '33_columns';
     querySequence(conn.db, [
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (' +
@@ -230,15 +230,15 @@ module.exports = {
     });
   },
   testIntvar: function(test) {
-    var testTable = 'intvar_test';
+    const testTable = 'intvar_test';
     querySequence(conn.db, [
       'DROP TABLE IF EXISTS ' + conn.escId(testTable),
       'CREATE TABLE ' + conn.escId(testTable) + ' (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY , col INT)',
     ], function(error) {
       if (error) console.error(error);
       // Start second ZongJi instance
-      var zongji = new ZongJi(settings.connection);
-      var events = [];
+      const zongji = new ZongJi(settings.connection);
+      const events = [];
 
       zongji.on('binlog', function(event) {
         if (event.getTypeName() === 'Query' && event.query === 'BEGIN')

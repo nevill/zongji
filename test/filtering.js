@@ -1,8 +1,8 @@
-var settings = require('./settings/mysql');
-var connector =  require('./helpers/connector');
-var querySequence = require('./helpers/querySequence');
+const settings = require('./settings/mysql');
+const connector =  require('./helpers/connector');
+const querySequence = require('./helpers/querySequence');
 
-var conn = process.testZongJi || {};
+const conn = process.testZongJi || {};
 
 module.exports = {
   setUp: function(done) {
@@ -22,7 +22,7 @@ module.exports = {
     done();
   },
   unitTestFilter: function(test) {
-    var origOptions = conn.zongji.options;
+    const origOptions = conn.zongji.options;
 
     conn.zongji.set({
       includeEvents: ['tablemap', 'writerows', 'updaterows', 'rotate'],
@@ -77,9 +77,9 @@ module.exports = {
   integrationTestFilter: function(test) {
     // Set includeSchema to not include anything, recieve no row events
     // Ensure that filters are applied
-    var origOptions = conn.zongji.options;
-    var testTable = 'filter_test';
-    var includeSchema = {};
+    const origOptions = conn.zongji.options;
+    const testTable = 'filter_test';
+    const includeSchema = {};
     // Uncomment the following line to manually test this test:
     // includeSchema[settings.database] = [ testTable ];
     conn.zongji.set({
@@ -106,9 +106,9 @@ module.exports = {
   changeAfterInit: function(test) {
     // Set includeSchema to skip table after the tableMap has already been
     // cached once, recieve no row events afterwards
-    var origOptions = conn.zongji.options;
-    var testTable = 'after_init_test';
-    var includeSchema = {};
+    const origOptions = conn.zongji.options;
+    const testTable = 'after_init_test';
+    const includeSchema = {};
     includeSchema[settings.database] = [ testTable ];
     conn.zongji.set({
       includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
