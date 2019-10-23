@@ -22,7 +22,7 @@ function expectEvents(test, events, expected, multiplier, callback, waitIndex) {
     events.forEach(function(event, index) {
       const exp = expected[index % expected.length];
       for (const i in exp) {
-        if (exp.hasOwnProperty(i)) {
+        if (Object.prototype.hasOwnProperty.call(exp, i)) {
           if (i === '_type') {
             test.strictEqual(exp[i], event.getTypeName());
           } else if (String(i).substr(0, 1) === '_') {
