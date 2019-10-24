@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/nevill/zongji",
   "engines": {
-    "node": ">= 6.0"
+    "node": ">= 8.0"
   },
   "devDependencies": {
     "eslint": "6.5.1",
