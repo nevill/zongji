@@ -8,8 +8,8 @@ module.exports = {
     charset  : 'utf8mb4_unicode_ci',
     port     : process.env.TEST_MYSQL_PORT,
     dateStrings : process.env.TEST_DATE_STRINGS === 'true',
+    database: 'zongji_test',
     // debug: true
   },
-  database: 'zongji_test',
-  sessionSqlMode: process.env.TEST_SESSION_SQL_MODE || ''
+  sessionSqlMode: process.env.TEST_SESSION_SQL_MODE || '',
 };
