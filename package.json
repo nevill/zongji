@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "nodeunit --reporter=minimal test",
+    "test": "tap --bail --no-coverage test/*.js",
     "lint": "eslint ."
   },
   "repository": {
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "eslint": "6.5.1",
-    "nodeunit": "0.11.3"
+    "tap": "14.8.2"
   },
   "dependencies": {
     "iconv-lite": "0.4.24",
