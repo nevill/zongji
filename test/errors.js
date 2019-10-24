@@ -1,203 +1,185 @@
-const ZongJi = require('./../');
-const getEventClass = require('./../lib/code_map').getEventClass;
+const tap = require('tap');
+
+const ZongJi = require('../');
 const settings = require('./settings/mysql');
-const connector =  require('./helpers/connector');
-const querySequence = require('./helpers/querySequence');
+const testDb = require('./helpers');
 
-const conn = process.testZongJi || {};
+tap.test('Connect to an invalid host', test => {
+  const zongji = new ZongJi({
+    host: 'wronghost',
+    user: 'wronguser',
+    password: 'wrongpass'
+  });
 
-function generateDisconnectionCase(readyKillIdFun, cleanupKillIdFun) {
-  return function(test) {
-    const zongji = new ZongJi(settings.connection);
-    let errorTrapped = false;
-    const ACCEPTABLE_ERRORS = [
-      'PROTOCOL_CONNECTION_LOST',
-      // MySQL 5.1 emits a packet sequence error when the binlog disconnected
-      'PROTOCOL_INCORRECT_PACKET_SEQUENCE'
-    ];
+  zongji.on('error', function(error) {
+    test.ok(['ENOTFOUND', 'ETIMEDOUT'].indexOf(error.code) !== -1);
+    test.end();
+  });
+});
 
-    zongji.on('error', function(error) {
-      if (!errorTrapped && ACCEPTABLE_ERRORS.indexOf(error.code) > -1) {
-        errorTrapped = true;
-        killThread(cleanupKillIdFun);
-        test.done();
+tap.test('Initialise testing db', test => {
+  testDb.init(err => {
+    if (err) {
+      return test.threw(err);
+    }
+    test.end();
+  });
+});
+
+const ACCEPTABLE_ERRORS = [
+  'PROTOCOL_CONNECTION_LOST',
+  // MySQL 5.1 emits a packet sequence error when the binlog disconnected
+  'PROTOCOL_INCORRECT_PACKET_SEQUENCE'
+];
+
+tap.test('Disconnect binlog connection', test => {
+  const zongji = new ZongJi(settings.connection);
+
+  zongji.start({
+    includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
+    serverId: testDb.serverId(),
+  });
+
+  zongji.on('ready', () => {
+    let threadId = zongji.connection.threadId;
+    test.ok(!isNaN(threadId));
+    testDb.execute([`kill ${threadId}`], err => {
+      if (err) {
+        test.threw(err);
       }
     });
+  });
 
-    zongji.start({
-      includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
-      // Anything other than default (1) as used in helpers/connector
-      serverId: 12
-    });
-
-    function killThread(argFun) {
-      const threadId = argFun(zongji);
-      test.ok(!isNaN(threadId));
-      conn.db.query('KILL ' + threadId);
-    }
-
-    function isZongjiReady() {
-      setTimeout(function() {
-        if (zongji.ready) {
-          killThread(readyKillIdFun);
-        } else {
-          isZongjiReady();
-        }
-      }, 100);
-    }
-    isZongjiReady();
-
-  };
-}
-
-module.exports = {
-  setUp: function(done) {
-    if (!conn.db) {
-      process.testZongJi = connector.call(conn, settings, done);
+  zongji.on('error', err => {
+    if (ACCEPTABLE_ERRORS.indexOf(err.code) > -1) {
+      zongji.stop();
+      test.end();
     } else {
-      conn.incCount();
-      done();
+      test.threw(err);
     }
-  },
-  tearDown: function(done) {
-    if (conn) {
-      conn.eventLog.splice(0, conn.eventLog.length);
-      conn.errorLog.splice(0, conn.errorLog.length);
-      conn.closeIfInactive(1000);
+  });
+});
+
+tap.test('Disconnect control connection', test => {
+  const zongji = new ZongJi(settings.connection);
+
+  zongji.start({
+    includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
+    serverId: testDb.serverId(),
+  });
+
+  zongji.on('ready', () => {
+    let threadId = zongji.ctrlConnection.threadId;
+    test.ok(!isNaN(threadId));
+    testDb.execute([`kill ${threadId}`], err => {
+      if (err) {
+        test.threw(err);
+      }
+    });
+  });
+
+  zongji.on('error', err => {
+    if (ACCEPTABLE_ERRORS.indexOf(err.code) > -1) {
+      zongji.stop();
+      test.end();
+    } else {
+      test.threw(err);
     }
-    done();
-  },
-  binlogConnection_disconnect: generateDisconnectionCase(
-    function onReady(zongji) { return zongji.connection.threadId; },
-    function onCleanup(zongji) { return zongji.ctrlConnection.threadId; }),
-  ctrlConnection_disconnect: generateDisconnectionCase(
-    function onReady(zongji) { return zongji.ctrlConnection.threadId; },
-    function onCleanup(zongji) { return zongji.connection.threadId; }),
+  });
+});
 
-  reconnect_at_pos: function(test) {
-    // Test that binlog events come through in correct sequence after
-    // reconnect using the filename and position properties
-    const NEW_INST_TIMEOUT = 1000;
-    const UPDATE_INTERVAL = 300;
-    const UPDATE_COUNT = 5;
-    const TEST_TABLE = 'reconnect_at_pos';
 
-    let first;
-    let second;
+tap.test('Events come through in sequence', test => {
+  const NEW_INST_TIMEOUT = 1000;
+  const UPDATE_INTERVAL = 300;
+  const UPDATE_COUNT = 5;
+  const TEST_TABLE = 'reconnect_at_pos';
 
-    let result = [];
+  test.test(`prepare table ${TEST_TABLE}`, test => {
+    testDb.execute([
+      `DROP TABLE IF EXISTS ${TEST_TABLE}`,
+      `CREATE TABLE ${TEST_TABLE} (col INT UNSIGNED)`,
+      `INSERT INTO ${TEST_TABLE} (col) VALUES (10)`,
+    ], err =>{
+      if (err) {
+        return test.threw(err);
+      }
+      test.end();
+    });
+  });
 
-    // Create a new ZongJi instance using some default options that will count
-    // using the values in the new rows inserted
-    function startNewZongJi(options) {
-      let zongji = new ZongJi(settings.connection);
-
-      zongji.start(
-        Object.assign(
-          {
-            // Must include rotate events for filename and position properties
-            includeEvents: [
-              'rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows'
-            ]
-          },
-          options
-        )
-      );
-
-      zongji.on('binlog', function(event) {
-        if (event.getTypeName() === 'WriteRows') {
-          result.push(event.rows[0].col);
-
-          if (result.length === UPDATE_COUNT) {
-            exitTest();
-          }
-        }
-      });
-      return zongji;
-    }
-
-    function exitTest() {
-      first.stop && first.stop();
-      second.stop && second.stop();
-
-      test.deepEqual(
-        result,
-        Array.from({length: UPDATE_COUNT}, (_, i) => i)
-      );
-      test.done();
-    }
+  test.test('when reconnect', test => {
+    const result = [];
 
     function startPeriodicallyWriting() {
-      const INSERT_QUERY = 'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES ';
       let sequences = Array.from(
         {length: UPDATE_COUNT},
-        (_, i) => INSERT_QUERY + `(${i})`
+        (_, i) => `INSERT INTO ${TEST_TABLE} (col) VALUES (${i})`
       );
-      let updateInterval;
 
-      let doInsert = () => {
-        querySequence(conn.db, [sequences.shift()], error => {
+      let updateInterval = setInterval(() => {
+        testDb.execute([sequences.shift()], error => {
           if (error) {
             clearInterval(updateInterval);
-            test.done(error);
+            test.threw(error);
           }
         });
 
         if (sequences.length === 0) {
           clearInterval(updateInterval);
         }
-      };
-
-      updateInterval = setInterval(doInsert, UPDATE_INTERVAL);
+      }, UPDATE_INTERVAL);
     }
 
-    function killFirstWhenTimeout() {
-      setTimeout(function() {
+    function newInstance(options) {
+      const zongji = new ZongJi(settings.connection);
+
+      zongji.start({
+        ...options,
+        // Must include rotate events for filename and position properties
+        includeEvents: [
+          'rotate', 'tablemap', 'writerows', 'updaterows', 'deleterows'
+        ]
+      });
+
+      zongji.on('binlog', function(event) {
+        if (event.getTypeName() === 'WriteRows') {
+          result.push(event.rows[0].col);
+        }
+
+        if (result.length === UPDATE_COUNT) {
+          test.strictSame(
+            result,
+            Array.from({length: UPDATE_COUNT}, (_, i) => i)
+          );
+          test.end();
+        }
+      });
+
+      return zongji;
+    }
+
+    let first = newInstance({
+      serverId: testDb.serverId(),
+      startAtEnd: true,
+    });
+
+    first.on('ready', () => {
+      startPeriodicallyWriting();
+
+      first.on('stopped', () => {
         // Start new ZongJi instance where the previous was when stopped
-        first.stop();
-        second = startNewZongJi({
-          serverId: 16,
+        let second = newInstance({
+          serverId: testDb.serverId(),
           filename: first.get('filename'),
           position: first.get('position'),
         });
-      }, NEW_INST_TIMEOUT);
-    }
 
-    querySequence(conn.db, [
-      'DROP TABLE IF EXISTS ' + conn.escId(TEST_TABLE),
-      'CREATE TABLE ' + conn.escId(TEST_TABLE) + ' (col INT UNSIGNED)',
-      'INSERT INTO ' + conn.escId(TEST_TABLE) + ' (col) VALUES (10)',
-    ], function(error) {
-      if (error) {
-        return test.done(error);
-      }
-
-      first = startNewZongJi({
-        serverId: 14,
-        startAtEnd: true
+        test.tearDown(() => second.stop());
       });
+      setTimeout(() => first.stop(), NEW_INST_TIMEOUT);
+    });
+  });
 
-      first.on('ready', () => {
-        startPeriodicallyWriting();
-        killFirstWhenTimeout();
-      });
-    });
-  },
-
-  invalid_host: function(test) {
-    const zongji = new ZongJi({
-      host: 'wronghost',
-      user: 'wronguser',
-      password: 'wrongpass'
-    });
-    zongji.on('error', function(error) {
-      test.ok([ 'ENOTFOUND', 'ETIMEDOUT' ].indexOf(error.code) !== -1);
-      test.done();
-    });
-  },
-  code_map: function(test) {
-    test.equal(getEventClass(2).name, 'Query');
-    test.equal(getEventClass(490).name, 'Unknown');
-    test.done();
-  }
-};
+  test.end();
+});

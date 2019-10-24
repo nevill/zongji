@@ -24,11 +24,11 @@ function expectEvents(test, events, expected, multiplier, callback, waitIndex) {
       for (const i in exp) {
         if (Object.prototype.hasOwnProperty.call(exp, i)) {
           if (i === '_type') {
-            test.strictEqual(exp[i], event.getTypeName());
+            test.strictEqual(event.getTypeName(), exp[i]);
           } else if (String(i).substr(0, 1) === '_') {
             exp[i](test, event);
           } else {
-            test.deepEqual(exp[i], event[i]);
+            test.same(event[i], exp[i]);
           }
         }
       }
