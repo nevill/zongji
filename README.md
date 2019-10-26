@@ -78,6 +78,15 @@ Method Name | Arguments | Description
 `set`       | `options` | Change options after `start()`
 `on`        | `eventName`, `handler` | Add a listener to the `binlog` or `error` event. Each handler function accepts one argument.
 
+Some events can be emitted in different phases:
+
+Event Name | Description
+-----------|------------------------
+`ready`    | This event is occurred right after ZongJi successfully established a connection, setup slave status, and set binlog position.
+`binlog`   | Once a binlog is received and passes the filter, it will bubble up with this event.
+`error`    | Every error will be caught by this event.
+`stopped`  | Emitted when ZongJi connection is stopped (ZongJi#stop is called).
+
 **Options available:**
 
 Option Name | Type | Description

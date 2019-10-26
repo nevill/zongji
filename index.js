@@ -293,8 +293,10 @@ ZongJi.prototype.stop = function() {
   this.ctrlConnection.query(
     'KILL ' + this.connection.threadId,
     () => {
-      if (this.ctrlConnectionOwner)
+      if (this.ctrlConnectionOwner) {
         this.ctrlConnection.destroy();
+      }
+      this.emit('stopped');
     }
   );
 };
