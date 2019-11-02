@@ -15,6 +15,9 @@ tap.test('Connect to an invalid host', test => {
     test.ok(['ENOTFOUND', 'ETIMEDOUT'].indexOf(error.code) !== -1);
     test.end();
   });
+
+  test.tearDown(() => zongji.stop());
+  zongji.start();
 });
 
 tap.test('Initialise testing db', test => {

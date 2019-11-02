@@ -16,9 +16,9 @@ tap.test('Initialise testing db', test => {
 
 tap.test('Unit test', test => {
   const zongji = new ZongJi(settings.connection);
-  zongji.on('ready', () => {
+
     test.test('Check that exclude overrides include', test => {
-      zongji.set({
+      zongji._filters({
         includeEvents: ['tablemap', 'writerows', 'updaterows', 'rotate'],
         excludeEvents: ['rotate'],
         includeSchema: {db1: true, db2: ['one_table'], db3: true},
@@ -35,7 +35,7 @@ tap.test('Unit test', test => {
     });
 
     test.test(test => {
-      zongji.set({
+      zongji._filters({
         includeSchema: {db1: ['just_me']}
       });
       test.ok(!zongji._skipSchema('db1', 'just_me'));
@@ -46,9 +46,10 @@ tap.test('Unit test', test => {
     });
 
     test.test(test => {
-      zongji.set({
+      zongji._filters({
         excludeSchema: {db1: ['not_me']}
       });
+
       test.ok(!zongji._skipSchema('db1', 'anything_else'));
       test.ok(!zongji._skipSchema('db2', 'anything_else'));
       test.ok(zongji._skipSchema('db1', 'not_me'));
@@ -57,7 +58,7 @@ tap.test('Unit test', test => {
     });
 
     test.test(test =>{
-      zongji.set({
+      zongji._filters({
         excludeEvents: ['rotate']
       });
       test.ok(!zongji._skipEvent('tablemap'));
@@ -68,17 +69,14 @@ tap.test('Unit test', test => {
 
     test.test(test =>{
       test.plan(2);
-      zongji.set({
-        includeEvents: ['rotate']
+      zongji._filters({
+        includeEvents: ['rotate'],
       });
       test.ok(zongji._skipEvent('tablemap'));
       test.ok(!zongji._skipEvent('rotate'));
     });
 
-    zongji.stop(); // It's fine to destroy the connection early.
     test.end();
-  });
-
 });
 
 tap.test('Exclue all the schema', test => {
@@ -161,7 +159,7 @@ tap.test('Change filter when ZongJi is running', test => {
           // reset for next test
           eventLog.splice(0, eventLog.length);
 
-          zongji.set({
+          zongji._filters({
             includeEvents: ['tablemap', 'writerows', 'updaterows', 'deleterows'],
             includeSchema: {},
           });
