@@ -75,7 +75,6 @@ Method Name | Arguments | Description
 ------------|-----------|------------------------
 `start`     | `options` | Start receiving replication events, see options listed below
 `stop`      | *None*    | Disconnect from MySQL server, stop receiving events
-`set`       | `options` | Change options after `start()`
 `on`        | `eventName`, `handler` | Add a listener to the `binlog` or `error` event. Each handler function accepts one argument.
 
 Some events can be emitted in different phases:
