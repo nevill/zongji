@@ -36,6 +36,7 @@
     "tap": "14.8.2"
   },
   "dependencies": {
+    "big-integer": "1.6.47",
     "iconv-lite": "0.4.24",
     "mysql": "2.17.1"
   }
