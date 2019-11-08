@@ -1,6 +1,6 @@
 {
   "name": "zongji",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "A mysql binlog listener running on Node.js",
   "main": "index.js",
   "directories": {
