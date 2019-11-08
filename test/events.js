@@ -405,8 +405,8 @@ tap.test('With many columns', test => {
       }
 
       expectEvents(test, events, [
-        { /* do not bother testing anything on first event */ },
-        { rows: result[result.length - 1] }
+        { _type: 'TableMap' },
+        { rows: result[result.length - 1], _type: 'WriteRows' }
       ], 1, test.end);
     });
   });
