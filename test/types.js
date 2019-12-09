@@ -176,14 +176,14 @@ defineTypeTest('int_unsigned', [
 defineTypeTest('double', [
   'DOUBLE NULL'
 ], [
-  [1.0], [-1.0], [123.456], [-13.47], [0.00005], [-0.00005],
+  [0], [1.0], [-1.0], [123.456], [-13.47], [0.00005], [-0.00005],
   [8589934592.123], [-8589934592.123], [null]
 ]);
 
 defineTypeTest('float', [
   'FLOAT NULL'
 ], [
-  [1.0], [-1.0], [123.456], [-13.47], [3999.12]
+  [0], [1.0], [-1.0], [123.456], [-13.47], [3999.12]
 ], function(test, event) {
   // Ensure sum of differences is very low
   const diff = event.rows.reduce(function(prev, cur, index) {
