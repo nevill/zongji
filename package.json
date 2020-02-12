@@ -38,6 +38,7 @@
   "dependencies": {
     "big-integer": "1.6.47",
     "iconv-lite": "0.4.24",
+    "invariant": "^2.2.2",
     "mysql": "2.17.1"
   }
 }
