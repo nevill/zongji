@@ -2,14 +2,20 @@ import {EventEmitter} from 'events'
 import {Connection, ConnectionConfig, Pool} from 'mysql'
 
 declare class ZongJI extends EventEmitter {
+  public tableMap: {[tableId: number]: ZongJI.ITableMap}
+  public ready: boolean
+  public useChecksum:boolean
+
   constructor(options: ConnectionConfig | Pool | Connection)
 
   public start(options: ZongJI.IStartOptions): void
   public stop(): void
 
   public on(event: 'binlog', listener: (event: ZongJI.IBinlogEventData) => unknown): this
+  public on(event: 'ready', listener: () => unknown): this
 
   public once(event: 'binlog', listener: (event: ZongJI.IBinlogEventData) => unknown): this
+  public once(event: 'ready', listener: () => unknown): this
 
   public get(name: string): unknown
   public get(name: string[]): unknown[]
