@@ -1,27 +1,28 @@
 import {EventEmitter} from 'events'
 import {Connection, ConnectionConfig, Pool} from 'mysql'
 
-declare class ZongJI extends EventEmitter {
-  public tableMap: {[tableId: number]: ZongJI.ITableMap}
+declare class ZongJi extends EventEmitter {
+  public tableMap: {[tableId: number]: ZongJi.ITableMap}
   public ready: boolean
   public useChecksum:boolean
+  public options: ZongJi.IStartOptions
 
   constructor(options: ConnectionConfig | Pool | Connection)
 
-  public start(options: ZongJI.IStartOptions): void
+  public start(options: ZongJi.IStartOptions): void
   public stop(): void
 
-  public on(event: 'binlog', listener: (event: ZongJI.IBinlogEventData) => unknown): this
+  public on(event: 'binlog', listener: (event: ZongJi.IBinlogEventData) => unknown): this
   public on(event: 'ready', listener: () => unknown): this
 
-  public once(event: 'binlog', listener: (event: ZongJI.IBinlogEventData) => unknown): this
+  public once(event: 'binlog', listener: (event: ZongJi.IBinlogEventData) => unknown): this
   public once(event: 'ready', listener: () => unknown): this
 
   public get(name: string): unknown
   public get(name: string[]): unknown[]
 }
 
-declare namespace ZongJI {
+declare namespace ZongJi {
   export type TEvents = 'unknown' | 'query' | 'intvar' | 'rotate' | 'format' | 'xid' | 'tablemap' | 'writerows' |
     'updaterows' | 'deleterows'
 
@@ -106,4 +107,4 @@ declare namespace ZongJI {
   }
 }
 
-export = ZongJI
+export = ZongJi
