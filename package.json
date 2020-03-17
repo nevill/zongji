@@ -32,6 +32,8 @@
     "node": ">= 8.0"
   },
   "devDependencies": {
+    "@types/mysql": "^2.15.9",
+    "@types/node": "^13.9.1",
     "eslint": "6.5.1",
     "tap": "14.8.2"
   },
