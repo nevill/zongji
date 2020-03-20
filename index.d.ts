@@ -51,7 +51,7 @@ declare namespace ZongJi {
   }
 
   export interface IRowsEventData extends IBinlogEventData {
-    rows: object[]
+    rows: {before: object; after: object}[]
     tableId: number
     tableMap: {[tableId: number]: ITableMap}
     flags: number
