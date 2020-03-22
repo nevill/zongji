@@ -252,7 +252,7 @@ ZongJi.prototype.start = function(options = {}) {
     switch (event.getTypeName()) {
       case 'TableMap': {
         const tableMap = this.tableMap[event.tableId];
-        if (!tableMap) {
+        if (!tableMap || tableMap.tableName !== event.tableName || tableMap.columns.length !== event.columnCount) {
           this.connection.pause();
           this._fetchTableInfo(event, () => {
             // merge the column info with metadata
