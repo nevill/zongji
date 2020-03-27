@@ -6,6 +6,7 @@ declare class ZongJi extends EventEmitter {
   public ready: boolean
   public useChecksum:boolean
   public options: ZongJi.IStartOptions
+  public connection: Connection
 
   constructor(options: ConnectionConfig | Pool | Connection)
 
