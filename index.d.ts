@@ -14,9 +14,13 @@ declare class ZongJi extends EventEmitter {
 
   public on(event: 'binlog', listener: (event: ZongJi.IBinlogEventData) => unknown): this
   public on(event: 'ready', listener: () => unknown): this
+  public on(event: 'error', listener: (err: Error) => unknown): this
+  public on(event: 'stopped', listener: () => unknown): this
 
   public once(event: 'binlog', listener: (event: ZongJi.IBinlogEventData) => unknown): this
   public once(event: 'ready', listener: () => unknown): this
+  public once(event: 'error', listener: (err: Error) => unknown): this
+  public once(event: 'stopped', listener: () => unknown): this
 
   public get(name: string): unknown
   public get(name: string[]): unknown[]
