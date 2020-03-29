@@ -4,6 +4,12 @@ services:
   mysql55:
     image: mysql:5.5
     command: [ "--server-id=1", "--log-bin=/var/lib/mysql/mysql-bin.log", "--binlog-format=row"]
+    ports:
+      # <Port exposed> : < MySQL Port running inside container>
+      - '3306:3306'
+    expose:
+      # Opens port 3306 on the container
+      - '3306'
     networks:
       default:
         aliases:
@@ -14,6 +20,12 @@ services:
   mysql56:
     image: mysql:5.6
     command: [ "--server-id=1", "--log-bin=/var/lib/mysql/mysql-bin.log", "--binlog-format=row"]
+    ports:
+      # <Port exposed> : < MySQL Port running inside container>
+      - '3306:3306'
+    expose:
+      # Opens port 3306 on the container
+      - '3306'
     networks:
       default:
         aliases:
@@ -24,6 +36,12 @@ services:
   mysql57:
     image: mysql:5.7
     command: [ "--server-id=1", "--log-bin=/var/lib/mysql/mysql-bin.log", "--binlog-format=row"]
+    ports:
+      # <Port exposed> : < MySQL Port running inside container>
+      - '3306:3306'
+    expose:
+      # Opens port 3306 on the container
+      - '3306'
     networks:
       default:
         aliases:
