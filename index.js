@@ -4,14 +4,15 @@ const EventEmitter = require('events').EventEmitter;
 const initBinlogClass = require('./lib/sequence/binlog');
 
 const ConnectionConfigMap = {
-  'Connection': obj => obj.config,
-  'Pool': obj => obj.config.connectionConfig,
+  Connection: (obj) => obj.config,
+  Pool: (obj) => obj.config.connectionConfig,
 };
 
-const TableInfoQueryTemplate = 'SELECT ' +
-  'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
-  'COLUMN_COMMENT, COLUMN_TYPE ' +
-  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s'";
+const TableInfoQueryTemplate = `SELECT 
+  COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, 
+  COLUMN_COMMENT, COLUMN_TYPE 
+  FROM information_schema.columns WHERE table_schema='%s' AND table_name='%s'
+  ORDER BY ORDINAL_POSITION`;
 
 function ZongJi(dsn) {
   EventEmitter.call(this);
@@ -29,7 +30,7 @@ function ZongJi(dsn) {
 util.inherits(ZongJi, EventEmitter);
 
 // dsn - can be one instance of Connection or Pool / object / url string
-ZongJi.prototype._establishConnection = function(dsn) {
+ZongJi.prototype._establishConnection = function (dsn) {
   const createConnection = (options) => {
     let connection = mysql.createConnection(options);
     connection.on('error', this.emit.bind(this, 'error'));
@@ -61,29 +62,26 @@ ZongJi.prototype._establishConnection = function(dsn) {
   this.connection = createConnection(binlogDsn);
 };
 
-ZongJi.prototype._isChecksumEnabled = function(next) {
+ZongJi.prototype._isChecksumEnabled = function (next) {
   const SelectChecksumParamSql = 'select @@GLOBAL.binlog_checksum as checksum';
   const SetChecksumSql = 'set @master_binlog_checksum=@@global.binlog_checksum';
 
   const query = (conn, sql) => {
-    return new Promise(
-      (resolve, reject) => {
-        conn.query(sql, (err, result) => {
-          if (err) {
-            reject(err);
-          }
-          else {
-            resolve(result);
-          }
-        });
-      }
-    );
+    return new Promise((resolve, reject) => {
+      conn.query(sql, (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+    });
   };
 
   let checksumEnabled = true;
 
   query(this.ctrlConnection, SelectChecksumParamSql)
-    .then(rows => {
+    .then((rows) => {
       if (rows[0].checksum === 'NONE') {
         checksumEnabled = false;
       }
@@ -92,13 +90,12 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
         return query(this.connection, SetChecksumSql);
       }
     })
-    .catch(err => {
+    .catch((err) => {
       if (err.toString().match(/ER_UNKNOWN_SYSTEM_VARIABLE/)) {
         checksumEnabled = false;
         // a simple query to open this.connection
         return query(this.connection, 'SELECT 1');
-      }
-      else {
+      } else {
         next(err);
       }
     })
@@ -107,21 +104,23 @@ ZongJi.prototype._isChecksumEnabled = function(next) {
     });
 };
 
-ZongJi.prototype._findBinlogEnd = function(next) {
+ZongJi.prototype._findBinlogEnd = function (next) {
   this.ctrlConnection.query('SHOW BINARY LOGS', (err, rows) => {
     if (err) {
       // Errors should be emitted
       next(err);
-    }
-    else {
+    } else {
       next(null, rows.length > 0 ? rows[rows.length - 1] : null);
     }
   });
 };
 
-ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
-  const sql = util.format(TableInfoQueryTemplate,
-    tableMapEvent.schemaName, tableMapEvent.tableName);
+ZongJi.prototype._fetchTableInfo = function (tableMapEvent, next) {
+  const sql = util.format(
+    TableInfoQueryTemplate,
+    tableMapEvent.schemaName,
+    tableMapEvent.tableName,
+  );
 
   this.ctrlConnection.query(sql, (err, rows) => {
     if (err) {
@@ -133,9 +132,15 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
     }
 
     if (rows.length === 0) {
-      this.emit('error', new Error(
-        'Insufficient permissions to access: ' +
-        tableMapEvent.schemaName + '.' + tableMapEvent.tableName));
+      this.emit(
+        'error',
+        new Error(
+          'Insufficient permissions to access: ' +
+            tableMapEvent.schemaName +
+            '.' +
+            tableMapEvent.tableName,
+        ),
+      );
       // This is a fatal error, no additional binlog events will be
       // processed since next() will never be called
       return;
@@ -144,7 +149,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
     this.tableMap[tableMapEvent.tableId] = {
       columnSchemas: rows,
       parentSchema: tableMapEvent.schemaName,
-      tableName: tableMapEvent.tableName
+      tableName: tableMapEvent.tableName,
     };
 
     next();
@@ -152,12 +157,7 @@ ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
 };
 
 // #_options will reset all the options.
-ZongJi.prototype._options = function({
-  serverId,
-  filename,
-  position,
-  startAtEnd,
-}) {
+ZongJi.prototype._options = function ({ serverId, filename, position, startAtEnd }) {
   this.options = {
     serverId,
     filename,
@@ -167,7 +167,7 @@ ZongJi.prototype._options = function({
 };
 
 // #_filters will reset all the filters.
-ZongJi.prototype._filters = function({
+ZongJi.prototype._filters = function ({
   includeEvents,
   excludeEvents,
   includeSchema,
@@ -181,19 +181,15 @@ ZongJi.prototype._filters = function({
   };
 };
 
-ZongJi.prototype.get = function(name) {
+ZongJi.prototype.get = function (name) {
   let result;
   if (typeof name === 'string') {
     result = this.options[name];
-  }
-  else if (Array.isArray(name)) {
-    result = name.reduce(
-      (acc, cur) => {
-        acc[cur] = this.options[cur];
-        return acc;
-      },
-      {}
-    );
+  } else if (Array.isArray(name)) {
+    result = name.reduce((acc, cur) => {
+      acc[cur] = this.options[cur];
+      return acc;
+    }, {});
   }
 
   return result;
@@ -204,8 +200,7 @@ ZongJi.prototype.get = function(name) {
 // - `filename`, `position` the position of binlog to beigin with
 // - `startAtEnd` if true, will update filename / postion automatically
 // - `includeEvents`, `excludeEvents`, `includeSchema`, `exludeSchema` filter different binlog events bubbling
-ZongJi.prototype.start = function(options = {}) {
-
+ZongJi.prototype.start = function (options = {}) {
   this._options(options);
   this._filters(options);
 
@@ -213,14 +208,12 @@ ZongJi.prototype.start = function(options = {}) {
     this._isChecksumEnabled((err, checksumEnabled) => {
       if (err) {
         reject(err);
-      }
-      else {
+      } else {
         this.useChecksum = checksumEnabled;
         resolve();
       }
     });
   };
-
 
   const findBinlogEnd = (resolve, reject) => {
     this._findBinlogEnd((err, result) => {
@@ -233,7 +226,7 @@ ZongJi.prototype.start = function(options = {}) {
           Object.assign({}, options, {
             filename: result.Log_name,
             position: result.File_size,
-          })
+          }),
         );
       }
 
@@ -286,66 +279,49 @@ ZongJi.prototype.start = function(options = {}) {
       this.ready = true;
       this.emit('ready');
 
-      this.connection._protocol._enqueue(
-        new this.BinlogClass(binlogHandler)
-      );
+      this.connection._protocol._enqueue(new this.BinlogClass(binlogHandler));
     })
-    .catch(err => {
+    .catch((err) => {
       this.emit('error', err);
     });
-
 };
 
-ZongJi.prototype.stop = function() {
+ZongJi.prototype.stop = function () {
   // Binary log connection does not end with destroy()
   this.connection.destroy();
-  this.ctrlConnection.query(
-    'KILL ' + this.connection.threadId,
-    () => {
-      if (this.ctrlConnectionOwner) {
-        this.ctrlConnection.destroy();
-      }
-      this.emit('stopped');
+  this.ctrlConnection.query('KILL ' + this.connection.threadId, () => {
+    if (this.ctrlConnectionOwner) {
+      this.ctrlConnection.destroy();
     }
-  );
+    this.emit('stopped');
+  });
 };
 
 // It includes every events by default.
-ZongJi.prototype._skipEvent = function(name) {
+ZongJi.prototype._skipEvent = function (name) {
   const includes = this.filters.includeEvents;
   const excludes = this.filters.excludeEvents;
 
-  let included = (includes === undefined) ||
-    (Array.isArray(includes) && (includes.indexOf(name) > -1));
-  let excluded = Array.isArray(excludes) && (excludes.indexOf(name) > -1);
+  let included = includes === undefined || (Array.isArray(includes) && includes.indexOf(name) > -1);
+  let excluded = Array.isArray(excludes) && excludes.indexOf(name) > -1;
 
   return excluded || !included;
 };
 
 // It doesn't skip any schema by default.
-ZongJi.prototype._skipSchema = function(database, table) {
+ZongJi.prototype._skipSchema = function (database, table) {
   const includes = this.filters.includeSchema;
   const excludes = this.filters.excludeSchema || {};
 
-  let included = (includes === undefined) ||
-    (
-      (database in includes) &&
-      (
-        includes[database] === true ||
-        (
-          Array.isArray(includes[database]) &&
-          includes[database].indexOf(table) > -1
-        )
-      )
-    );
-  let excluded = (database in excludes) &&
-    (
-      excludes[database] === true ||
-      (
-        Array.isArray(excludes[database]) &&
-        excludes[database].indexOf(table) > -1
-      )
-    );
+  let included =
+    includes === undefined ||
+    (database in includes &&
+      (includes[database] === true ||
+        (Array.isArray(includes[database]) && includes[database].indexOf(table) > -1)));
+  let excluded =
+    database in excludes &&
+    (excludes[database] === true ||
+      (Array.isArray(excludes[database]) && excludes[database].indexOf(table) > -1));
 
   return excluded || !included;
 };
