@@ -1,282 +1,413 @@
-var mysql = require('mysql');
-var settings = require('./settings/mysql');
-var connector =  require('./helpers/connector');
-var querySequence = require('./helpers/querySequence');
-var expectEvents = require('./helpers/expectEvents');
-var ZongJi = require('./../');
+const tap = require('tap');
 
-var conn = process.testZongJi || {};
+const ZongJi = require('../');
+const expectEvents = require('./helpers/expectEvents');
+const testDb = require('./helpers');
+const settings = require('./settings/mysql');
 
-var checkTableMatches = function(tableName) {
+const checkTableMatches = function(tableName) {
   return function(test, event) {
-    var tableDetails = event.tableMap[event.tableId];
-    test.strictEqual(tableDetails.parentSchema, settings.database);
+    const tableDetails = event.tableMap[event.tableId];
+    test.strictEqual(tableDetails.parentSchema, testDb.SCHEMA_NAME);
     test.strictEqual(tableDetails.tableName, tableName);
   };
 };
 
 // For use with expectEvents()
-var tableMapEvent = function(tableName) {
+const tableMapEvent = function(tableName) {
   return {
     _type: 'TableMap',
     tableName: tableName,
-    schemaName: settings.database
+    schemaName: testDb.SCHEMA_NAME,
   };
 };
 
-module.exports = {
-  setUp: function(done) {
-    if (!conn.db) {
-      process.testZongJi = connector.call(conn, settings, done);
-    } else {
-      conn.incCount();
-      done();
+tap.test('Initialise testing db', test => {
+  testDb.init(err => {
+    if (err) {
+      return test.threw(err);
     }
-  },
-  tearDown: function(done) {
-    if (conn) {
-      conn.eventLog.splice(0, conn.eventLog.length);
-      conn.errorLog.splice(0, conn.errorLog.length);
-      conn.closeIfInactive(1000);
-    }
-    done();
-  },
-  testStartAtEnd: function(test) {
-    var testTable = 'start_at_end_test';
-    querySequence(conn.db, [
-      'FLUSH LOGS', // Ensure Zongji perserveres through a rotation event
-      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
-      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
-      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-    ], function(error) {
-      if (error) console.error(error);
-      // Start second ZongJi instance
-      var zongji = new ZongJi(settings.connection);
-      var events = [];
+    test.end();
+  });
+});
 
-      zongji.on('binlog', function(event) {
-        events.push(event);
+tap.test('Binlog option startAtEnd', test => {
+  const TEST_TABLE = 'start_at_end_test';
+
+  test.test(`prepare new table ${TEST_TABLE}`, test => {
+    testDb.execute([
+      'FLUSH LOGS', // Ensure ZongJi perserveres through a rotation event
+      `DROP TABLE IF EXISTS ${TEST_TABLE}`,
+      `CREATE TABLE ${TEST_TABLE} (col INT UNSIGNED)`,
+      `INSERT INTO ${TEST_TABLE} (col) VALUES (12)`,
+    ], err => {
+      if (err) {
+        return test.fail(err);
+      }
+      test.end();
+    });
+  });
+
+  test.test('start', test => {
+    const events = [];
+
+    const zongji = new ZongJi(settings.connection);
+    test.tearDown(() => zongji.stop());
+
+    zongji.on('binlog', evt => events.push(evt));
+    zongji.start({
+      startAtEnd: true,
+      includeEvents: ['tablemap', 'writerows'],
+    });
+
+    zongji.on('ready', () => {
+      testDb.execute([
+        `INSERT INTO ${TEST_TABLE} (col) VALUES (9)`,
+      ], err => {
+        if (err) {
+          return test.fail(err);
+        }
+
+        // Should only have 2 events since ZongJi start
+        expectEvents(test, events,
+          [
+            { /* do not bother testing anything on first event */ },
+            { rows: [ { col: 9 } ] }
+          ], 1,
+          () => test.end()
+        );
       });
+    });
 
-      zongji.start({
-        startAtEnd: true,
-        serverId: 10, // Second instance must not use same server ID
-        includeEvents: ['tablemap', 'writerows']
-      });
 
-      // Give enough time to initialize
-      setTimeout(function() {
-        querySequence(conn.db, [
-          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-        ], function(error) {
-          if (error) console.error(error);
+  });
+
+  test.end();
+});
+
+tap.test('Class constructor', test => {
+  const TEST_TABLE = 'conn_obj_test';
+
+  test.test(`prepare table ${TEST_TABLE}`, test => {
+    testDb.execute([
+      `DROP TABLE IF EXISTS ${TEST_TABLE}`,
+      `CREATE TABLE ${TEST_TABLE} (col INT UNSIGNED)`,
+      `INSERT INTO ${TEST_TABLE} (col) VALUES (10)`,
+    ], err => {
+      if (err) {
+        return test.fail(err);
+      }
+
+      test.end();
+    });
+  });
+
+  function run(test, zongji) {
+    test.tearDown(() => zongji.stop());
+
+    const events = [];
+    zongji.on('binlog', evt => events.push(evt));
+    zongji.start({
+      startAtEnd: true,
+      serverId: testDb.serverId(),
+      includeEvents: ['tablemap', 'writerows'],
+    });
+    zongji.on('ready', () => {
+      let value = Math.round(Math.random() *  100);
+      testDb.execute([
+          `INSERT INTO ${TEST_TABLE} (col) VALUES (${value})`,
+        ], err => {
+          if (err) {
+            return test.fail(err);
+          }
           // Should only have 2 events since ZongJi start
+
           expectEvents(test, events, [
             { /* do not bother testing anything on first event */ },
-            { rows: [ { col: 10 } ] }
-          ], 1, function() {
-            zongji.stop();
-            test.done();
-          });
+            { rows: [ { col: value } ] }
+          ], 1, () => test.end());
         });
-      }, 200);
-
     });
-  },
-  testPassedConnectionObj: function(test) {
-    var testTable = 'conn_obj_test';
-    var connObjs = [
-      { create: mysql.createConnection, end: function(obj) { obj.destroy(); } },
-      { create: mysql.createPool, end: function(obj) { obj.end(); } }
-    ];
-    querySequence(conn.db, [
-      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
-      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
-      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-    ], function(error) {
-      if (error) console.error(error);
-      // Start second ZongJi instance
-      connObjs.forEach(function(connObj, index) {
-        var ctrlConn = connObj.create(settings.connection);
-        var zongji = new ZongJi(ctrlConn);
-        var events = [];
+  }
 
-        zongji.on('binlog', function(event) {
-          events.push(event);
-        });
+  const mysql = require('mysql');
 
-        zongji.start({
-          startAtEnd: true,
-          serverId: 12 + index, // Second instance must not use same server ID
-          includeEvents: ['tablemap', 'writerows']
-        });
+  test.test('pass a mysql connection instance', test => {
+    const conn = mysql.createConnection(settings.connection);
+    const zongji = new ZongJi(conn);
+    zongji.on('stopped', () => conn.destroy());
+    run(test, zongji);
+  });
 
-        connObj.zongji = zongji;
-        connObj.events = events;
-      });
+  test.test('pass a mysql pool', test => {
+    const pool = mysql.createConnection(settings.connection);
+    const zongji = new ZongJi(pool);
+    zongji.on('stopped', () => pool.end());
+    run(test, zongji);
+  });
 
-      // Give enough time to initialize
-      setTimeout(function() {
-        querySequence(conn.db, [
-          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-        ], function(error) {
-          if (error) console.error(error);
-          // Should only have 2 events since ZongJi start
-          var finishedCount = 0;
-          connObjs.forEach(function(connObj) {
-            expectEvents(test, connObj.events, [
-              { /* do not bother testing anything on first event */ },
-              { rows: [ { col: 10 } ] }
-            ], 1, function() {
-              connObj.zongji.stop();
-              // When passing connection object, connection doesn't end on stop
-              connObj.end(connObj.zongji.ctrlConnection);
-              if (++finishedCount === connObjs.length - 1) test.done();
-            });
-          });
-        });
-      }, 200);
+  test.end();
+});
 
+tap.test('Write events', test => {
+  const TEST_TABLE = 'write_events_test';
+
+  test.test(`prepare table ${TEST_TABLE}`, test => {
+    testDb.execute([
+      `DROP TABLE IF EXISTS ${TEST_TABLE}`,
+      `CREATE TABLE ${TEST_TABLE} (col INT UNSIGNED)`,
+    ], err => {
+      if (err) {
+        return test.fail(err);
+      }
+
+      test.end();
     });
-  },
-  testWriteUpdateDelete: function(test) {
-    var testTable = 'events_test';
-    querySequence(conn.db, [
-      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
-      'CREATE TABLE ' + conn.escId(testTable) + ' (col INT UNSIGNED)',
-      'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-      'UPDATE ' + conn.escId(testTable) + ' SET col = 15',
-      'DELETE FROM ' + conn.escId(testTable)
-    ], function(error) {
-      if (error) console.error(error);
-      expectEvents(test, conn.eventLog, [
-        tableMapEvent(testTable),
-        {
-          _type: 'WriteRows',
-          _checkTableMap: checkTableMatches(testTable),
-          rows: [ { col: 10 } ]
-        },
-        tableMapEvent(testTable),
-        {
-          _type: 'UpdateRows',
-          _checkTableMap: checkTableMatches(testTable),
-          rows: [ { before: { col: 10 }, after: { col: 15 } } ]
-        },
-        tableMapEvent(testTable),
-        {
-          _type: 'DeleteRows',
-          _checkTableMap: checkTableMatches(testTable),
-          rows: [ { col: 15 } ]
+  });
+
+  test.test('write a record', test => {
+    const events = [];
+    const zongji = new ZongJi(settings.connection);
+    test.tearDown(() => zongji.stop());
+
+    zongji.start({
+      startAtEnd: true,
+      serverId: testDb.serverId(),
+      includeEvents: ['tablemap', 'writerows'],
+    });
+
+    zongji.on('ready', () => {
+      testDb.execute([
+        `INSERT INTO ${TEST_TABLE} (col) VALUES (14)`,
+      ], err => {
+        if (err) {
+          return test.fail(err);
         }
-      ], 1, function() {
-        test.equal(conn.errorLog.length, 0);
-        test.done();
       });
     });
-  },
-  testManyColumns: function(test) {
-    var testTable = '33_columns';
-    querySequence(conn.db, [
-      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
-      'CREATE TABLE ' + conn.escId(testTable) + ' (' +
-        'col1 INT SIGNED NULL, ' +
-        'col2 BIGINT SIGNED NULL, ' +
-        'col3 TINYINT SIGNED NULL, ' +
-        'col4 SMALLINT SIGNED NULL, ' +
-        'col5 MEDIUMINT SIGNED NULL, ' +
-        'col6 INT SIGNED NULL, ' +
-        'col7 BIGINT SIGNED NULL, ' +
-        'col8 TINYINT SIGNED NULL, ' +
-        'col9 SMALLINT SIGNED NULL, ' +
-        'col10 INT SIGNED NULL, ' +
-        'col11 BIGINT SIGNED NULL, ' +
-        'col12 TINYINT SIGNED NULL, ' +
-        'col13 SMALLINT SIGNED NULL, ' +
-        'col14 INT SIGNED NULL, ' +
-        'col15 BIGINT SIGNED NULL, ' +
-        'col16 TINYINT SIGNED NULL, ' +
-        'col17 SMALLINT SIGNED NULL, ' +
-        'col18 INT SIGNED NULL, ' +
-        'col19 BIGINT SIGNED NULL, ' +
-        'col20 TINYINT SIGNED NULL, ' +
-        'col21 SMALLINT SIGNED NULL, ' +
-        'col22 INT SIGNED NULL, ' +
-        'col23 BIGINT SIGNED NULL, ' +
-        'col24 TINYINT SIGNED NULL, ' +
-        'col25 SMALLINT SIGNED NULL, ' +
-        'col26 INT SIGNED NULL, ' +
-        'col27 BIGINT SIGNED NULL, ' +
-        'col28 TINYINT SIGNED NULL, ' +
-        'col29 SMALLINT SIGNED NULL, ' +
-        'col30 INT SIGNED NULL, ' +
-        'col31 BIGINT SIGNED NULL, ' +
-        'col32 TINYINT SIGNED NULL, ' +
-        'col33 SMALLINT SIGNED NULL)',
-      'INSERT INTO ' + conn.escId(testTable) +
-        ' (col1, col2, col3, col4, col5, col33) VALUES ' +
-          '(2147483647, null, 127, 32767, 8388607, 12), ' +
-          '(-2147483648, -9007199254740992, -128, -32768, -8388608, 10), ' +
-          '(-2147483645, -9007199254740990, -126, -32766, -8388606, 6), ' +
-          '(-1, -1, -1, -1, null, -6), ' +
-          '(123456, 100, 96, 300, 1000, null), ' +
-          '(-123456, -100, -96, -300, -1000, null)',
-       'SELECT * FROM ' + conn.escId(testTable)
-    ], function(error, results) {
-      if (error) console.error(error);
-      expectEvents(test, conn.eventLog, [
-        { /* do not bother testing anything on first event */ },
-        { rows: results[results.length - 1] }
-      ], 1, test.done);
+
+    zongji.on('binlog', evt => {
+      events.push(evt);
+
+      if (events.length == 2) {
+        expectEvents(test, events,
+          [
+            tableMapEvent(TEST_TABLE),
+            {
+              _type: 'WriteRows',
+              _checkTableMap: checkTableMatches(TEST_TABLE),
+              rows: [ { col: 14 } ],
+            }
+          ], 1,
+          () => test.end()
+        );
+      }
     });
-  },
-  testIntvar: function(test) {
-    var testTable = 'intvar_test';
-    querySequence(conn.db, [
-      'DROP TABLE IF EXISTS ' + conn.escId(testTable),
-      'CREATE TABLE ' + conn.escId(testTable) + ' (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY , col INT)',
-    ], function(error) {
-      if (error) console.error(error);
-      // Start second ZongJi instance
-      var zongji = new ZongJi(settings.connection);
-      var events = [];
+  });
 
-      zongji.on('binlog', function(event) {
-        if (event.getTypeName() === 'Query' && event.query === 'BEGIN')
-          return;
-        events.push(event);
+  test.test('update a record', test => {
+    const events = [];
+    const zongji = new ZongJi(settings.connection);
+    test.tearDown(() => zongji.stop());
+
+    zongji.start({
+      startAtEnd: true,
+      serverId: testDb.serverId(),
+      includeEvents: ['tablemap', 'updaterows'],
+    });
+
+    zongji.on('ready', () => {
+      testDb.execute([
+        `UPDATE ${TEST_TABLE} SET col=15`,
+      ], err => {
+        if (err) {
+          return test.fail(err);
+        }
       });
+    });
 
-      zongji.start({
-        startAtEnd: true,
-        serverId: 12, // Second instance must not use same server ID
-        includeEvents: ['intvar', 'query']
+    zongji.on('binlog', evt => {
+      events.push(evt);
+
+      if (events.length == 2) {
+        expectEvents(test, events,
+          [
+            tableMapEvent(TEST_TABLE),
+            {
+              _type: 'UpdateRows',
+              _checkTableMap: checkTableMatches(TEST_TABLE),
+              rows: [ { before: { col: 14 }, after: { col: 15 } } ],
+            }
+          ], 1,
+          () => test.end()
+        );
+      }
+    });
+  });
+
+  test.test('delete a record', test => {
+    const events = [];
+    const zongji = new ZongJi(settings.connection);
+    test.tearDown(() => zongji.stop());
+
+    zongji.start({
+      startAtEnd: true,
+      serverId: testDb.serverId(),
+      includeEvents: ['tablemap', 'deleterows'],
+    });
+
+    zongji.on('ready', () => {
+      testDb.execute([
+        `DELETE FROM ${TEST_TABLE}`,
+      ], err => {
+        if (err) {
+          return test.fail(err);
+        }
       });
+    });
 
-      // Give enough time to initialize
-      setTimeout(function() {
-        querySequence(conn.db, [
-          'SET SESSION binlog_format=STATEMENT',
-          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (10)',
-          'INSERT INTO ' + conn.escId(testTable) + ' (col) VALUES (11)',
-          'INSERT INTO ' + conn.escId(testTable) + ' (id, col) VALUES (100, LAST_INSERT_ID())',
-          // Other tests expect row-based replication, so reset here
-          'SET SESSION binlog_format=ROW',
-        ], function(error) {
-          if (error) console.error(error);
-          expectEvents(test, events, [
+    zongji.on('binlog', evt => {
+      events.push(evt);
+
+      if (events.length == 2) {
+        expectEvents(test, events,
+          [
+            tableMapEvent(TEST_TABLE),
+            {
+              _type: 'DeleteRows',
+              _checkTableMap: checkTableMatches(TEST_TABLE),
+              rows: [ { col: 15 } ],
+            }
+          ], 1,
+          () => test.end()
+        );
+      }
+    });
+  });
+
+  test.end();
+});
+
+tap.test('Intvar / Query event', test => {
+  const TEST_TABLE = 'intvar_test';
+
+  test.test(`prepare table ${TEST_TABLE}`, test => {
+    testDb.execute([
+      `DROP TABLE IF EXISTS ${TEST_TABLE}`,
+      `CREATE TABLE ${TEST_TABLE} (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, col INT)`,
+    ], err => {
+      if (err) {
+        return test.fail(err);
+      }
+
+      test.end();
+    });
+  });
+
+  test.test('begin', test => {
+    const events = [];
+    const zongji = new ZongJi(settings.connection);
+    test.tearDown(() => zongji.stop());
+
+    zongji.on('binlog', event => {
+      if (event.getTypeName() === 'Query' && event.query === 'BEGIN') {
+        return;
+      }
+      events.push(event);
+
+      if (events.length === 6) {
+        expectEvents(test, events, [
             { _type: 'IntVar', type: 2, value: 1 },
             { _type: 'Query' },
             { _type: 'IntVar', type: 2, value: 2 },
             { _type: 'Query' },
             { _type: 'IntVar', type: 1, value: 2 },
             { _type: 'Query' },
-          ], 1, function() {
-            zongji.stop();
-            test.done();
-          });
-        });
-      }, 200);
+          ], 1, () => test.end()
+        );
+      }
     });
-  },
-};
 
+    zongji.start({
+      startAtEnd: true,
+      serverId: testDb.serverId(),
+      includeEvents: ['intvar', 'query'],
+    });
+
+    zongji.on('ready', () => {
+      testDb.execute([
+        'SET SESSION binlog_format=STATEMENT',
+        `INSERT INTO ${TEST_TABLE} (col) VALUES (10)`,
+        `INSERT INTO ${TEST_TABLE} (col) VALUES (11)`,
+        `INSERT INTO ${TEST_TABLE} (id, col) VALUES (100, LAST_INSERT_ID())`,
+        // Other tests expect row-based replication, so reset here
+        'SET SESSION binlog_format=ROW',
+      ], err => {
+        if (err) {
+          test.fail(err);
+        }
+      });
+    });
+
+  });
+
+  test.end();
+});
+
+tap.test('With many columns', test => {
+  const TEST_TABLE = '33_columns';
+  const events = [];
+
+  const zongji = new ZongJi(settings.connection);
+
+  test.tearDown(() => zongji.stop());
+  zongji.on('binlog', evt => events.push(evt));
+  zongji.start({
+    startAtEnd: true,
+    serverId: testDb.serverId(),
+    includeEvents: ['tablemap', 'writerows'],
+  });
+
+  zongji.on('ready', () => {
+    testDb.execute([
+      `DROP TABLE IF EXISTS ${TEST_TABLE}`,
+      `CREATE TABLE ${TEST_TABLE} (
+        col1 INT SIGNED NULL, col2 BIGINT SIGNED NULL,
+        col3 TINYINT SIGNED NULL, col4 SMALLINT SIGNED NULL,
+        col5 MEDIUMINT SIGNED NULL, col6 INT SIGNED NULL,
+        col7 BIGINT SIGNED NULL, col8 TINYINT SIGNED NULL,
+        col9 SMALLINT SIGNED NULL, col10 INT SIGNED NULL,
+        col11 BIGINT SIGNED NULL, col12 TINYINT SIGNED NULL,
+        col13 SMALLINT SIGNED NULL, col14 INT SIGNED NULL,
+        col15 BIGINT SIGNED NULL, col16 TINYINT SIGNED NULL,
+        col17 SMALLINT SIGNED NULL, col18 INT SIGNED NULL,
+        col19 BIGINT SIGNED NULL, col20 TINYINT SIGNED NULL,
+        col21 SMALLINT SIGNED NULL, col22 INT SIGNED NULL,
+        col23 BIGINT SIGNED NULL, col24 TINYINT SIGNED NULL,
+        col25 SMALLINT SIGNED NULL, col26 INT SIGNED NULL,
+        col27 BIGINT SIGNED NULL, col28 TINYINT SIGNED NULL,
+        col29 SMALLINT SIGNED NULL, col30 INT SIGNED NULL,
+        col31 BIGINT SIGNED NULL, col32 TINYINT SIGNED NULL,
+        col33 SMALLINT SIGNED NULL)`,
+      `INSERT INTO ${TEST_TABLE} (col1, col2, col3, col4, col5, col33) VALUES
+          (null, null, null, null, null, null),
+          (-1, -1, -1, -1, -1, -1),
+          (2147483647, 9007199254740993, 127, 32767, 8388607, 12),
+          (-2147483648, -9007199254740993, -128, -32768, -8388608, 10),
+          (-2147483645, -1, -126, -32766, -8388606, 6),
+          (-1, 9223372036854775809, -1, -1, null, -6),
+          (123456, -9223372036854775809, 96, 300, 1000, null),
+          (-123456, 9223372036854775807, -96, -300, -1000, null)`,
+      `SELECT * FROM ${TEST_TABLE}`,
+    ], (err, result) => {
+      if (err) {
+        return test.fail(err);
+      }
+
+      expectEvents(test, events, [
+        { _type: 'TableMap' },
+        { rows: result[result.length - 1], _type: 'WriteRows' }
+      ], 1, test.end);
+    });
+  });
+});

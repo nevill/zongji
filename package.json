@@ -1,13 +1,13 @@
 {
   "name": "zongji",
-  "version": "0.4.7",
+  "version": "0.5.1",
   "description": "A mysql binlog listener running on Node.js",
   "main": "index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "nodeunit --reporter=minimal test",
+    "test": "tap --bail --no-coverage --jobs=1 test/*.js",
     "lint": "eslint ."
   },
   "repository": {
@@ -28,12 +28,16 @@
     "url": "https://github.com/nevill/zongji/issues"
   },
   "homepage": "https://github.com/nevill/zongji",
+  "engines": {
+    "node": ">= 8.0"
+  },
   "devDependencies": {
-    "eslint": "2.13.1",
-    "nodeunit": "~0.9.1"
+    "eslint": "6.8.0",
+    "tap": "14.10.7"
   },
   "dependencies": {
-    "iconv-lite": "^0.4.13",
-    "mysql": "2.15.0"
+    "big-integer": "1.6.48",
+    "iconv-lite": "0.5.1",
+    "mysql": "2.18.1"
   }
 }

@@ -3,14 +3,18 @@ A MySQL binlog listener running on Node.js.
 
 ZongJi (踪迹) is pronounced as `zōng jì` in Chinese.
 
-This package is a "pure JS" implementation based on [`node-mysql`](https://github.com/felixge/node-mysql). Since v0.2.0, The native part (which was written in C++) has been dropped.
+This package is a pure JS implementation based on [`mysql`](https://github.com/mysqljs/mysql). It has been tested to work in MySQL 5.5, 5.6, and 5.7.
 
-This package has been tested to work in MySQL 5.5, 5.6, and 5.7.
+# Latest Release
+
+The latest release is v0.5.0, only supports Node.js from v8.
+
+v0.4.7 is the last release which supports Node.js v4.x.
 
 ## Quick Start
 
 ```javascript
-var zongji = new ZongJi({ /* ... MySQL Connection Settings ... */ });
+let zongji = new ZongJi({ /* ... MySQL Connection Settings ... */ });
 
 // Each change to the replication log results in an event
 zongji.on('binlog', function(evt) {
@@ -27,7 +31,7 @@ For a complete implementation see [`example.js`](example.js)...
 
 ## Installation
 
-* Requires Node.js v4+
+* Requires Node.js v8+
 
   ```bash
   $ npm install zongji
@@ -59,12 +63,12 @@ For a complete implementation see [`example.js`](example.js)...
 
 The `ZongJi` constructor accepts one argument of either:
 
-* An object containing MySQL connection details in the same format as used by `node-mysql`
-* Or, a `node-mysql` `Connection` or `Pool` object that will be used for querying column information.
+* An object containing MySQL connection details in the same format as used by [package mysql](https://npm.im/mysql)
+* Or, a [mysql](https://npm.im/mysql) `Connection` or `Pool` object that will be used for querying column information.
 
 If a `Connection` or `Pool` object is passed to the constructor, it will not be destroyed/ended by Zongji's `stop()` method.
 
-If there is a `dateStrings` `node-mysql` configuration option in the connection details or connection, `ZongJi` will follow it.
+If there is a `dateStrings` `mysql` configuration option in the connection details or connection, `ZongJi` will follow it.
 
 Each instance includes the following methods:
 
@@ -72,8 +76,16 @@ Method Name | Arguments | Description
 ------------|-----------|------------------------
 `start`     | `options` | Start receiving replication events, see options listed below
 `stop`      | *None*    | Disconnect from MySQL server, stop receiving events
-`set`       | `options` | Change options after `start()`
 `on`        | `eventName`, `handler` | Add a listener to the `binlog` or `error` event. Each handler function accepts one argument.
+
+Some events can be emitted in different phases:
+
+Event Name | Description
+-----------|------------------------
+`ready`    | This event is occurred right after ZongJi successfully established a connection, setup slave status, and set binlog position.
+`binlog`   | Once a binlog is received and passes the filter, it will bubble up with this event.
+`error`    | Every error will be caught by this event.
+`stopped`  | Emitted when ZongJi connection is stopped (ZongJi#stop is called).
 
 **Options available:**
 
@@ -81,8 +93,8 @@ Option Name | Type | Description
 ------------|------|-------------------------------
 `serverId`  | `integer` | [Unique number (1 - 2<sup>32</sup>)](http://dev.mysql.com/doc/refman/5.0/en/replication-options.html#option_mysqld_server-id) to identify this replication slave instance. Must be specified if running more than one instance of ZongJi. Must be used in `start()` method for effect.<br>**Default:** `1`
 `startAtEnd` | `boolean` | Pass `true` to only emit binlog events that occur after ZongJi's instantiation. Must be used in `start()` method for effect.<br>**Default:** `false`
-`binlogName` | `string` | Begin reading events from this binlog file. If specified together with `binlogNextPos`, will take precedence over `startAtEnd`.
-`binlogNextPos` | `integer` | Begin reading events from this position. Must be included with `binlogName`.
+`filename` | `string` | Begin reading events from this binlog file. If specified together with `position`, will take precedence over `startAtEnd`.
+`position` | `integer` | Begin reading events from this position. Must be included with `filename`.
 `includeEvents` | `[string]` | Array of event names to include<br>**Example:** `['writerows', 'updaterows', 'deleterows']`
 `excludeEvents` | `[string]` | Array of event names to exclude<br>**Example:** `['rotate', 'tablemap']`
 `includeSchema` | `object` | Object describing which databases and tables to include (Only for row events). Use database names as the key and pass an array of table names or `true` (for the entire database).<br>**Example:** ```{ 'my_database': ['allow_table', 'another_table'], 'another_db': true }```
@@ -98,7 +110,7 @@ Event name  | Description
 `unknown`   | Catch any other events
 `query`     | [Insert/Update/Delete Query](http://dev.mysql.com/doc/internals/en/query-event.html)
 `intvar`    | [Autoincrement and LAST_INSERT_ID](https://dev.mysql.com/doc/internals/en/intvar-event.html)
-`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html) Not required to be included to rotate to new files, but it is required to be included in order to keep the `binlogName` and `binlogNextPos` properties updated with current values for [graceful restarting on errors](https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f).
+`rotate`    | [New Binlog file](http://dev.mysql.com/doc/internals/en/rotate-event.html) Not required to be included to rotate to new files, but it is required to be included in order to keep the `filename` and `position` properties updated with current values for [graceful restarting on errors](https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f).
 `format`    | [Format Description](http://dev.mysql.com/doc/internals/en/format-description-event.html)
 `xid`       | [Transaction ID](http://dev.mysql.com/doc/internals/en/xid-event.html)
 `tablemap`  | Before any row event (must be included for any other row events)
@@ -117,8 +129,8 @@ Name   | Description
 
 ## Important Notes
 
-* :star2: [All types allowed by `node-mysql`](https://github.com/felixge/node-mysql#type-casting) are supported by this package.
-* :speak_no_evil: While 64-bit integers in MySQL (`BIGINT` type) allow values in the range of 2<sup>64</sup> (± ½ × 2<sup>64</sup> for signed values), Javascript's internal storage of numbers limits values to 2<sup>53</sup>, making the allowed range of `BIGINT` fields only `-9007199254740992` to `9007199254740992`. Unsigned 64-bit integers must also not exceed `9007199254740992`.
+* :star2: [All types allowed by `mysql`](https://github.com/mysqljs/mysql#type-casting) are supported by this package.
+* :speak_no_evil: 64-bit integer is supported via package big-integer(see #108). If an integer is within the safe range of JS number (-2^53, 2^53), a Number object will returned, otherwise, will return as String.
 * :point_right: `TRUNCATE` statement does not cause corresponding `DeleteRows` event. Use unqualified `DELETE FROM` for same effect.
 * When using fractional seconds with `DATETIME` and `TIMESTAMP` data types in MySQL > 5.6.4, only millisecond precision is available due to the limit of Javascript's `Date` object.
 
@@ -131,7 +143,7 @@ Name   | Description
 
 I learnt many things from following resources while making ZongJi.
 
-* https://github.com/felixge/node-mysql
+* https://github.com/mysqljs/mysql
 * https://github.com/felixge/faster-than-c/
 * http://intuitive-search.blogspot.co.uk/2011/07/binary-log-api-and-replication-listener.html
 * https://github.com/Sannis/node-mysql-libmysqlclient

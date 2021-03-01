@@ -1,4 +1,4 @@
-var MAX_WAIT = 3000;
+const MAX_WAIT = 3000;
 
 // Check an array of events against an array of expectations
 // @param {object} test - Pass-thru from nodeunit test case
@@ -20,15 +20,15 @@ function expectEvents(test, events, expected, multiplier, callback, waitIndex) {
   } else {
     test.strictEqual(events.length, expected.length * multiplier);
     events.forEach(function(event, index) {
-      var exp = expected[index % expected.length];
-      for (var i in exp) {
-        if (exp.hasOwnProperty(i)) {
+      const exp = expected[index % expected.length];
+      for (const i in exp) {
+        if (Object.prototype.hasOwnProperty.call(exp, i)) {
           if (i === '_type') {
-            test.strictEqual(exp[i], event.getTypeName());
+            test.strictEqual(event.getTypeName(), exp[i]);
           } else if (String(i).substr(0, 1) === '_') {
             exp[i](test, event);
           } else {
-            test.deepEqual(exp[i], event[i]);
+            test.same(event[i], exp[i]);
           }
         }
       }

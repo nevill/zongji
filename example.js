@@ -1,7 +1,7 @@
 // Client code
-var ZongJi = require('./');
+const ZongJi = require('./');
 
-var zongji = new ZongJi({
+const zongji = new ZongJi({
   host     : 'localhost',
   user     : 'zongji',
   password : 'zongji',

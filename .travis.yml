@@ -2,10 +2,9 @@ language: node_js
 sudo: required
 dist: trusty
 node_js:
-  - "4"
   - "8"
+  - "12"
 services:
-  - mysql
   - docker
 before_script:
   - npm run lint
