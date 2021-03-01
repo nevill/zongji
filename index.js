@@ -11,7 +11,7 @@ const ConnectionConfigMap = {
 const TableInfoQueryTemplate = 'SELECT ' +
   'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
   'COLUMN_COMMENT, COLUMN_TYPE ' +
-  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s'";
+  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s' ORDER BY ORDINAL_POSITION";
 
 function ZongJi(dsn) {
   EventEmitter.call(this);
@@ -118,6 +118,21 @@ ZongJi.prototype._findBinlogEnd = function(next) {
     }
   });
 };
+
+
+ZongJi.prototype._executeCtrlCallbacks = function() {
+  if (this.ctrlCallbacks.length > 0) {
+    this.ctrlCallbacks.forEach(function(cb) {
+      setImmediate(cb);
+    });
+  }
+};
+
+var tableInfoQueryTemplate = 'SELECT ' +
+  'COLUMN_NAME, COLLATION_NAME, CHARACTER_SET_NAME, ' +
+  'COLUMN_COMMENT, COLUMN_TYPE ' +
+  'FROM information_schema.columns ' + "WHERE table_schema='%s' AND table_name='%s' "+
+  'ORDER BY ORDINAL_POSITION';
 
 ZongJi.prototype._fetchTableInfo = function(tableMapEvent, next) {
   const sql = util.format(TableInfoQueryTemplate,
